@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { pool } from '../config/db';
+import { isProd } from '../config/env';
 
 export const apiRouter = Router();
 
@@ -9,3 +11,11 @@ apiRouter.get('/health', (_req, res) => {
         timestamp: new Date().toISOString(),
     });
 });
+
+// Solo para desarrollo: comprueba la conexion a MySQL y que las tablas existan
+if (!isProd) {
+    apiRouter.get('/health/db', async (_req, res) => {
+        const [rows] = await pool.query('SELECT COUNT(*) AS roles FROM roles');
+        res.json({ ok: true, db: 'conectada', ...(rows as Array<Record<string, unknown>>)[0] });
+    });
+}
