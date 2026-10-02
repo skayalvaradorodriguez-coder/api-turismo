@@ -11,6 +11,13 @@ const schema = z.object({
     DB_NAME: z.string().min(1),
     DB_USER: z.string().min(1),
     DB_PASSWORD: z.string().min(1),
+
+    JWT_SECRET: z.string().min(32, 'debe tener al menos 32 caracteres'),
+    SESSION_MINUTES: z.coerce.number().int().min(5).max(1440).default(45),
+    COOKIE_SECURE: z
+        .enum(['true', 'false'])
+        .default('false')
+        .transform((valor) => valor === 'true'),
 });
 
 const parsed = schema.safeParse(process.env);

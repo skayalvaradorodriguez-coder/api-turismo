@@ -1,6 +1,7 @@
 import { app } from './app';
 import { env } from './config/env';
 import { pool, checkDb } from './config/db';
+import { getHashSenuelo } from './utils/password';
 
 async function main(): Promise<void> {
     try {
@@ -11,6 +12,9 @@ async function main(): Promise<void> {
         console.error(error instanceof Error ? error.message : error);
         process.exit(1);
     }
+
+    // Se calcula una vez al arrancar para que la primera peticion no tarde mas que las demas
+    await getHashSenuelo();
 
     const server = app.listen(env.PORT, () => {
         console.log(`API Web Turismo en http://localhost:${env.PORT}/api/v1 (${env.NODE_ENV})`);

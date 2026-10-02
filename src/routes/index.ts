@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../config/db';
 import { isProd } from '../config/env';
+import { authRouter } from '../modules/auth/auth.routes';
 
 export const apiRouter = Router();
 
@@ -19,3 +20,5 @@ if (!isProd) {
         res.json({ ok: true, db: 'conectada', ...(rows as Array<Record<string, unknown>>)[0] });
     });
 }
+
+apiRouter.use('/auth', authRouter);
