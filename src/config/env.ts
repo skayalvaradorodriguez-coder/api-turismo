@@ -24,6 +24,15 @@ const schema = z
             .default('false')
             .transform((valor) => valor === 'true'),
 
+        // Acceso con Google: ID de cliente de Google Cloud Console (no es secreto). Vacio = el boton queda desactivado
+        GOOGLE_CLIENT_ID: z.preprocess(
+            vacioAUndefined,
+            z
+                .string()
+                .regex(/^[A-Za-z0-9._-]+\.apps\.googleusercontent\.com$/, 'debe terminar en .apps.googleusercontent.com')
+                .optional(),
+        ),
+
         // Correo: si no hay SMTP_HOST, en desarrollo se usa Ethereal (correo de pruebas)
         SMTP_HOST: z.preprocess(vacioAUndefined, z.string().min(1).optional()),
         SMTP_PORT: z.preprocess(vacioAUndefined, z.coerce.number().int().min(1).max(65535).optional()),
