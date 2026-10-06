@@ -15,7 +15,7 @@ const email = z
     .pipe(z.email({ error: 'Ingresa un correo valido' }).max(190, { error: 'Correo demasiado largo' }));
 
 // Misma politica que el script del super admin
-const passwordNueva = z
+export const passwordNueva = z
     .string({ error: 'Ingresa una contrasena' })
     .min(12, { error: 'La contrasena debe tener al menos 12 caracteres' })
     .max(128, { error: 'La contrasena es demasiado larga' })

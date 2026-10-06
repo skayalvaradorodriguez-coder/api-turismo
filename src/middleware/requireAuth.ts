@@ -11,11 +11,12 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
         throw new AppError('No has iniciado sesion', 401, 'NO_AUTENTICADO');
     }
 
-    const id = verificarSesion(token);
-    if (!id) throw new AppError('Tu sesion no es valida o expiro', 401, 'SESION_INVALIDA');
+    const sesion = verificarSesion(token);
+    if (!sesion) throw new AppError('Tu sesion no es valida o expiro', 401, 'SESION_INVALIDA');
 
-    // Se vuelve a leer el usuario en cada peticion: si lo desactivan, la sesion deja de servir al instante
-    const usuario = await usuarioDeSesion(id);
+    // Se vuelve a leer el usuario en cada peticion: si lo desactivan o cambia su contrasena,
+    // las sesiones abiertas dejan de servir al instante
+    const usuario = await usuarioDeSesion(sesion.id, sesion.emitidoEn);
     if (!usuario) throw new AppError('Tu sesion no es valida o expiro', 401, 'SESION_INVALIDA');
 
     req.user = usuario;

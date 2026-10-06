@@ -1,8 +1,8 @@
 import type { Correo } from '../../utils/mailer';
 
-const NOMBRE = 'Observatorio Turístico Sostenible';
+export const NOMBRE = 'Observatorio Turístico Sostenible';
 
-function escaparHtml(texto: string): string {
+export function escaparHtml(texto: string): string {
     return texto
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -11,7 +11,7 @@ function escaparHtml(texto: string): string {
         .replace(/'/g, '&#39;');
 }
 
-function plantilla(titulo: string, parrafos: string[], boton: { texto: string; url: string } | null, pie: string): string {
+export function plantilla(titulo: string, parrafos: string[], boton: { texto: string; url: string } | null, pie: string): string {
     const cuerpo = parrafos.map((p) => `<p style="margin:0 0 16px;font-size:16px;line-height:1.6;color:#1f3a3a;">${p}</p>`).join('');
     const accion = boton
         ? `<p style="margin:28px 0;"><a href="${escaparHtml(boton.url)}" style="display:inline-block;padding:14px 28px;background:#0d7570;color:#ffffff;text-decoration:none;font-weight:600;font-size:16px;border-radius:12px;">${escaparHtml(boton.texto)}</a></p>

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { pool } from '../config/db';
 import { isProd } from '../config/env';
 import { authRouter } from '../modules/auth/auth.routes';
+import { recuperacionRouter } from '../modules/auth/recuperacion.routes';
 import { registroRouter } from '../modules/auth/registro.routes';
 
 export const apiRouter = Router();
@@ -24,3 +25,4 @@ if (!isProd) {
 
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/auth', registroRouter);
+apiRouter.use('/auth', recuperacionRouter);

@@ -11,6 +11,7 @@ export interface UsuarioRow extends RowDataPacket {
     email_verificado_at: Date | null;
     intentos_fallidos: number;
     bloqueado: number; // 1 si la cuenta sigue bloqueada ahora mismo
+    sesiones_desde: number | null; // las sesiones emitidas hasta este instante (segundos) ya no valen
     rol_codigo: string;
 }
 
@@ -18,6 +19,7 @@ const SELECT_USUARIO = `
   SELECT u.id, u.nombres, u.apellidos, u.email, u.password_hash, u.activo,
          u.email_verificado_at, u.intentos_fallidos,
          (u.bloqueado_hasta IS NOT NULL AND u.bloqueado_hasta > NOW()) AS bloqueado,
+        UNIX_TIMESTAMP(u.sesiones_validas_desde) AS sesiones_desde,
          r.codigo AS rol_codigo
     FROM usuarios u
     JOIN roles r ON r.id = u.rol_id`;

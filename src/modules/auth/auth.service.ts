@@ -47,8 +47,12 @@ export async function login(email: string, password: string): Promise<AuthUser> 
 }
 
 // Para validar una sesion existente
-export async function usuarioDeSesion(id: number): Promise<AuthUser | null> {
+export async function usuarioDeSesion(id: number, emitidoEn: number): Promise<AuthUser | null> {
     const usuario = await repo.buscarPorId(id);
     if (!usuario || !usuario.activo) return null;
+
+    // Si la contrasena se cambio despues de emitirse este token, la sesion ya no vale
+    if (usuario.sesiones_desde !== null && emitidoEn <= usuario.sesiones_desde) return null;
+
     return aAuthUser(usuario);
 }
