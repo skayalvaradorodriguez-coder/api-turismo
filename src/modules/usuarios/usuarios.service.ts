@@ -6,13 +6,7 @@ import { registrar } from '../auditoria/auditoria.service';
 import type { Actor } from '../fuentes/fuentes.service';
 import * as repo from './usuarios.repository';
 import type { FiltroUsuarios, UsuarioBloqueado, UsuarioGestion } from './usuarios.repository';
-
-/**
- * Roles que se pueden asignar desde la API. "super_admin" no esta: esa cuenta solo se crea con el script
- * crear-admin y no se modifica desde la plataforma (asi nunca se pierde el ultimo administrador).
- */
-export const ROLES_ASIGNABLES = ['admin', 'investigador', 'externo'] as const;
-export type RolAsignable = (typeof ROLES_ASIGNABLES)[number];
+import type { RolAsignable } from './usuarios.schemas';
 
 const noEncontrado = () => new AppError('El usuario no existe', 404, 'USUARIO_NO_ENCONTRADO');
 const sinPermiso = (mensaje: string) => new AppError(mensaje, 403, 'PERMISO_INSUFICIENTE');
