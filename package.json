@@ -11,7 +11,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json",
     "seed:admin": "tsx src/scripts/crear-admin.ts"
   },
   "keywords": [],
