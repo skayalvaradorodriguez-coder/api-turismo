@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { ResultSetHeader, RowDataPacket } from 'mysql2';
 import type { PoolConnection } from 'mysql2/promise';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -27,13 +28,14 @@ beforeAll(async () => {
     usuarioId = id;
 });
 
-// Cada prueba trabaja dentro de una transaccion que se deshace al final: no queda nada en la base
+// Cada prueba trabaja dentro de una transaccion que se deshace al final: no queda nada en la base.
+// El codigo de la fuente es distinto en cada ejecucion para no chocar con fuentes reales.
 beforeEach(async () => {
     conexion = await pool.getConnection();
     await conexion.beginTransaction();
     const [r] = await conexion.execute<ResultSetHeader>(
-        "INSERT INTO fuentes (codigo, nombre, institucion, creado_por) VALUES ('prueba_cargas', 'Fuente de prueba', 'UPSE', ?)",
-        [usuarioId],
+        "INSERT INTO fuentes (codigo, nombre, institucion, creado_por) VALUES (?, 'Fuente de prueba', 'UPSE', ?)",
+        [`prueba_${randomUUID().slice(0, 8)}`, usuarioId],
     );
     fuenteId = r.insertId;
 });
@@ -196,8 +198,8 @@ describe('cargas.repository (con la base real; todo se deshace)', () => {
 
     it('estructuraPerteneceAFuente solo acepta una estructura de esa misma fuente', async () => {
         const [otra] = await conexion.execute<ResultSetHeader>(
-            "INSERT INTO fuentes (codigo, nombre, institucion, creado_por) VALUES ('prueba_otra', 'Otra fuente', 'UPSE', ?)",
-            [usuarioId],
+            "INSERT INTO fuentes (codigo, nombre, institucion, creado_por) VALUES (?, 'Otra fuente', 'UPSE', ?)",
+            [`prueba_${randomUUID().slice(0, 8)}`, usuarioId],
         );
         const [estructura] = await conexion.execute<ResultSetHeader>(
             "INSERT INTO estructuras (fuente_id, nombre) VALUES (?, 'Encuesta 2026')",

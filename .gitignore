@@ -9,10 +9,9 @@ logs/
 .env.*
 !.env.example
 
+# Archivos originales subidos por los usuarios: nunca se suben a git
+storage/
+
 .DS_Store
 Thumbs.db
 .idea/
-
-# Archivos originales (carpeta fuera de src, no se sube a git) y tamano maximo por archivo en MB
-STORAGE_DIR=storage
-MAX_UPLOAD_MB=100

@@ -279,7 +279,7 @@ export async function actualizarMetadatos(
                 accion: 'carga.metadatos',
                 entidad: 'carga',
                 entidadId: cargaId,
-                detalle: { claves: Object.keys(datos.metadatos) },
+                detalle: { campos: Object.keys(datos.metadatos) },
                 ip: actor.ip ?? null,
             },
             conexion,

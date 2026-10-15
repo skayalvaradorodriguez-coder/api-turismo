@@ -293,7 +293,7 @@ describe('actualizarMetadatos', () => {
 
         expect(repo.guardarMetadatos).toHaveBeenCalledWith(10, { cobertura: 'Salinas', secreto: 'valor-largo' }, expect.anything());
         expect(registrar).toHaveBeenCalledWith(
-            expect.objectContaining({ accion: 'carga.metadatos', detalle: { claves: ['cobertura', 'secreto'] } }),
+            expect.objectContaining({ accion: 'carga.metadatos', detalle: { campos: ['cobertura', 'secreto'] } }),
             expect.anything(),
         );
     });
