@@ -3,7 +3,7 @@ import { pool } from '../../config/db';
 
 export type TipoToken = 'verificar_email' | 'recuperar_password';
 
-/** Crea un usuario con el rol 'usuario'. El rol super_admin NUNCA se asigna desde aqui. */
+/** Crea un usuario con el rol 'externo'. El rol super_admin NUNCA se asigna desde aqui. */
 export async function crearUsuario(datos: {
     nombres: string;
     apellidos: string;
@@ -12,10 +12,10 @@ export async function crearUsuario(datos: {
 }): Promise<number> {
     const [resultado] = await pool.execute<ResultSetHeader>(
         `INSERT INTO usuarios (nombres, apellidos, email, password_hash, rol_id)
-     SELECT ?, ?, ?, ?, r.id FROM roles r WHERE r.codigo = 'usuario'`,
+     SELECT ?, ?, ?, ?, r.id FROM roles r WHERE r.codigo = 'externo'`,
         [datos.nombres, datos.apellidos, datos.email, datos.passwordHash],
     );
-    if (resultado.affectedRows === 0) throw new Error("No existe el rol 'usuario'. Ejecuta database/001_auth.sql");
+    if (resultado.affectedRows === 0) throw new Error("No existe el rol 'externo'. Ejecuta database/010_roles.sql");
     return resultado.insertId;
 }
 

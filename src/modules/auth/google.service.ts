@@ -13,7 +13,7 @@ const cuentaInactiva = (): AppError =>
  * Devuelve el id del usuario que corresponde a esta cuenta de Google:
  *  1. Ya vinculada          -> esa cuenta.
  *  2. Mismo correo          -> se vincula (Google ya verifico que el correo es de esa persona).
- *  3. No existe             -> se crea una cuenta nueva con rol 'usuario'.
+ *  3. No existe             -> se crea una cuenta nueva con rol 'externo'.
  */
 async function resolverUsuario(perfil: PerfilGoogle): Promise<number> {
     const porSub = await repo.buscarPorSub(perfil.sub);

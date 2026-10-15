@@ -1,4 +1,4 @@
-﻿import request from 'supertest';
+import request from 'supertest';
 import type { Test } from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuthUser } from '../../src/modules/auth/auth.types';
@@ -18,7 +18,7 @@ vi.mock('../../src/modules/auth/auth.service', async (importOriginal) => {
         1001: nuevo(1001, 'super_admin'),
         1002: nuevo(1002, 'admin'),
         1003: nuevo(1003, 'investigador'),
-        1004: nuevo(1004, 'usuario'),
+        1004: nuevo(1004, 'externo'),
     };
     return { ...original, usuarioDeSesion: vi.fn(async (id: number) => usuarios[id] ?? null) };
 });

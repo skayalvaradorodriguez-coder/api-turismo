@@ -20,14 +20,14 @@ export async function buscarPorEmail(email: string): Promise<UsuarioGoogleRow | 
     return filas[0] ?? null;
 }
 
-/** Cuenta nueva creada con Google: SIEMPRE rol 'usuario' y sin contrasena (password_hash NULL). */
+/** Cuenta nueva creada con Google: SIEMPRE rol 'externo' y sin contrasena (password_hash NULL). */
 export async function crearUsuario(datos: { nombres: string; apellidos: string; email: string; sub: string }): Promise<number> {
     const [resultado] = await pool.execute<ResultSetHeader>(
         `INSERT INTO usuarios (nombres, apellidos, email, google_sub, rol_id, email_verificado_at)
-     SELECT ?, ?, ?, ?, r.id, NOW() FROM roles r WHERE r.codigo = 'usuario'`,
+     SELECT ?, ?, ?, ?, r.id, NOW() FROM roles r WHERE r.codigo = 'externo'`,
         [datos.nombres, datos.apellidos, datos.email, datos.sub],
     );
-    if (resultado.affectedRows === 0) throw new Error("No existe el rol 'usuario'. Ejecuta database/001_auth.sql");
+    if (resultado.affectedRows === 0) throw new Error("No existe el rol 'externo'. Ejecuta database/010_roles.sql");
     return resultado.insertId;
 }
 

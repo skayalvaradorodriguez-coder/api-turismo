@@ -47,3 +47,6 @@ GRANT SELECT, INSERT         ON web_turismo.catastro_establecimientos  TO 'turis
 GRANT SELECT, INSERT         ON web_turismo.bitacora            TO 'turismo_app'@'127.0.0.1';
 
 FLUSH PRIVILEGES;
+-- Usuarios y roles (010): el modulo solo puede cambiar el rol y el estado de una cuenta
+GRANT UPDATE (rol_id, activo) ON web_turismo.usuarios TO 'turismo_app'@'localhost';
+GRANT UPDATE (rol_id, activo) ON web_turismo.usuarios TO 'turismo_app'@'127.0.0.1';

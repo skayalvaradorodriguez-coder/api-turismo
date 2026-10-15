@@ -29,7 +29,7 @@ describe('requireRol', () => {
 
     it('con un rol no permitido responde 403', () => {
         const siguiente = vi.fn();
-        const error = capturar(() => requireRol('super_admin', 'admin')(peticion('usuario'), respuesta, siguiente));
+        const error = capturar(() => requireRol('super_admin', 'admin')(peticion('externo'), respuesta, siguiente));
         expect(error?.statusCode).toBe(403);
         expect(error?.code).toBe('SIN_PERMISO');
         expect(siguiente).not.toHaveBeenCalled();
