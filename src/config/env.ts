@@ -24,6 +24,11 @@ const schema = z
             .default('false')
             .transform((valor) => valor === 'true'),
 
+
+        // Archivos originales: carpeta fuera de src/ (no se sube a git) y tamano maximo por archivo en MB
+        STORAGE_DIR: z.string().min(1).default('storage'),
+        MAX_UPLOAD_MB: z.coerce.number().int().min(1).max(500).default(100),
+
         // Acceso con Google: ID de cliente de Google Cloud Console (no es secreto). Vacio = el boton queda desactivado
         GOOGLE_CLIENT_ID: z.preprocess(
             vacioAUndefined,

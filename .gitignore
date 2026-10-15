@@ -12,3 +12,7 @@ logs/
 .DS_Store
 Thumbs.db
 .idea/
+
+# Archivos originales (carpeta fuera de src, no se sube a git) y tamano maximo por archivo en MB
+STORAGE_DIR=storage
+MAX_UPLOAD_MB=100
