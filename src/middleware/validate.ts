@@ -17,3 +17,18 @@ export function validarBody(schema: z.ZodType) {
         next();
     };
 }
+
+
+/** Valida datos que no vienen en el cuerpo (parametros de la URL, filtros) y devuelve el resultado ya limpio. */
+export function validarDatos<T extends z.ZodType>(schema: T, datos: unknown): z.output<T> {
+    const resultado = schema.safeParse(datos);
+    if (!resultado.success) {
+        throw new AppError(
+            'Los datos enviados no son validos',
+            422,
+            'VALIDACION',
+            resultado.error.issues.map((i) => ({ campo: i.path.join('.'), mensaje: i.message })),
+        );
+    }
+    return resultado.data;
+}

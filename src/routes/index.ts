@@ -5,6 +5,7 @@ import { authRouter } from '../modules/auth/auth.routes';
 import { recuperacionRouter } from '../modules/auth/recuperacion.routes';
 import { registroRouter } from '../modules/auth/registro.routes';
 import { googleRouter } from '../modules/auth/google.routes';
+import { fuentesRouter } from '../modules/fuentes/fuentes.routes';
 
 export const apiRouter = Router();
 
@@ -28,3 +29,4 @@ apiRouter.use('/auth', authRouter);
 apiRouter.use('/auth', registroRouter);
 apiRouter.use('/auth', recuperacionRouter);
 apiRouter.use('/auth', googleRouter);
+apiRouter.use('/fuentes', fuentesRouter);

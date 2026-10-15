@@ -51,3 +51,15 @@ export const cambiarEstadoSchema = z.strictObject({
 export type CrearFuenteInput = z.infer<typeof crearFuenteSchema>;
 export type EditarFuenteInput = z.infer<typeof editarFuenteSchema>;
 export type CambiarEstadoInput = z.infer<typeof cambiarEstadoSchema>;
+
+
+export const idParamSchema = z.object({
+    id: z.coerce
+        .number({ error: 'El id no es valido' })
+        .int({ error: 'El id no es valido' })
+        .positive({ error: 'El id no es valido' }),
+});
+
+export const listarFuentesQuerySchema = z.object({
+    estado: z.enum(['activa', 'inactiva'], { error: 'El estado debe ser activa o inactiva' }).optional(),
+});
