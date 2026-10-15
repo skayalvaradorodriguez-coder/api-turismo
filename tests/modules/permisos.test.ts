@@ -28,6 +28,9 @@ const TABLAS = [
     'carga_metadatos',
     'archivos_originales',
     'bitacora',
+    'procesamientos',
+    'hallazgos',
+    'catastro_establecimientos',
 ];
 
 describe('permisos del usuario de la aplicacion', () => {
