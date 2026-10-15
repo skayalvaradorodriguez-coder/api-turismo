@@ -235,6 +235,19 @@ export async function transicionarEstado(
     return resultado.affectedRows === 1;
 }
 
+/** true si la estructura existe y pertenece a esa fuente. */
+export async function estructuraPerteneceAFuente(
+    estructuraId: number,
+    fuenteId: number,
+    ejecutor: Ejecutor = pool,
+): Promise<boolean> {
+    const [filas] = await ejecutor.execute<RowDataPacket[]>(
+        'SELECT id FROM estructuras WHERE id = ? AND fuente_id = ? LIMIT 1',
+        [estructuraId, fuenteId],
+    );
+    return filas.length === 1;
+}
+
 // ---------------------------------------------------------------
 // Archivos originales
 // ---------------------------------------------------------------

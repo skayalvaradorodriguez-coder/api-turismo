@@ -7,6 +7,7 @@ import {
     buscarCargaPorId,
     crearCarga,
     esDuplicadoDe,
+    estructuraPerteneceAFuente,
     guardarMetadatos,
     insertarArchivo,
     listarArchivos,
@@ -191,6 +192,21 @@ describe('cargas.repository (con la base real; todo se deshace)', () => {
             { clave: 'metodologia', valor: 'Encuesta' },
             { clave: 'Tamaño de muestra', valor: '385' },
         ]);
+    });
+
+    it('estructuraPerteneceAFuente solo acepta una estructura de esa misma fuente', async () => {
+        const [otra] = await conexion.execute<ResultSetHeader>(
+            "INSERT INTO fuentes (codigo, nombre, institucion, creado_por) VALUES ('prueba_otra', 'Otra fuente', 'UPSE', ?)",
+            [usuarioId],
+        );
+        const [estructura] = await conexion.execute<ResultSetHeader>(
+            "INSERT INTO estructuras (fuente_id, nombre) VALUES (?, 'Encuesta 2026')",
+            [fuenteId],
+        );
+
+        expect(await estructuraPerteneceAFuente(estructura.insertId, fuenteId, conexion)).toBe(true);
+        expect(await estructuraPerteneceAFuente(estructura.insertId, otra.insertId, conexion)).toBe(false);
+        expect(await estructuraPerteneceAFuente(999999999, fuenteId, conexion)).toBe(false);
     });
 
     it('esDuplicadoDe no confunde otros errores ni otras restricciones', () => {
