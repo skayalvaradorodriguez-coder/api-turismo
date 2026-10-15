@@ -1,4 +1,4 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import { pool } from '../config/db';
 import { isProd } from '../config/env';
 import { authRouter } from '../modules/auth/auth.routes';
@@ -7,6 +7,7 @@ import { registroRouter } from '../modules/auth/registro.routes';
 import { googleRouter } from '../modules/auth/google.routes';
 import { fuentesRouter } from '../modules/fuentes/fuentes.routes';
 import { cargasRouter } from '../modules/cargas/cargas.routes';
+import { procesamientoRouter } from '../modules/procesamiento/procesamiento.routes';
 
 export const apiRouter = Router();
 
@@ -32,3 +33,4 @@ apiRouter.use('/auth', recuperacionRouter);
 apiRouter.use('/auth', googleRouter);
 apiRouter.use('/fuentes', fuentesRouter);
 apiRouter.use('/cargas', cargasRouter);
+apiRouter.use('/cargas', procesamientoRouter);
