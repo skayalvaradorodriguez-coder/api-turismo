@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { PoolConnection } from 'mysql2/promise';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { pool } from '../../src/config/db';
-import { crearCarga, esDuplicadoDe, insertarArchivo } from '../../src/modules/cargas/cargas.repository';
+import { crearCarga, esDuplicadoDe } from '../../src/modules/cargas/cargas.repository';
 import type { Hallazgo, RegistroCatastro } from '../../src/modules/procesamiento/catastro.reglas';
 import {
     buscarProcesamiento,
@@ -40,19 +40,20 @@ beforeEach(async () => {
         [`prueba_${randomUUID().slice(0, 8)}`, usuarioId],
     );
     cargaId = await crearCarga({ fuenteId: fuente.insertId, cargadoPor: usuarioId }, conexion);
-    archivoId = await insertarArchivo(
-        {
-            cargaId,
-            nombreOriginal: 'catastro.csv',
-            nombreAlmacenado: `${randomUUID()}.csv`,
-            tipoMime: 'text/csv',
-            tamanoBytes: 10,
-            sha256: randomUUID().replaceAll('-', '').padEnd(64, '0'),
-            subidoPor: usuarioId,
-        },
-        conexion,
-    );
+    archivoId = await crearArchivoDirecto(cargaId);
 });
+
+// El archivo se inserta con un INSERT simple y no con insertarArchivo(): esa funcion toma bloqueos de rango
+// y, si otra prueba la usa a la vez sobre la misma tabla, MySQL puede responder "Deadlock".
+async function crearArchivoDirecto(carga: number): Promise<number> {
+    const [r] = await conexion.execute<ResultSetHeader>(
+        `INSERT INTO archivos_originales
+       (carga_id, nombre_original, nombre_almacenado, tipo_mime, tamano_bytes, sha256, version, vigente, subido_por)
+     VALUES (?, 'catastro.csv', ?, 'text/csv', 10, ?, 1, 1, ?)`,
+        [carga, `${randomUUID()}.csv`, randomUUID().replaceAll('-', '').padEnd(64, '0'), usuarioId],
+    );
+    return r.insertId;
+}
 
 afterEach(async () => {
     await conexion.rollback();
@@ -294,12 +295,9 @@ describe('procesamiento.repository: registros del Catastro', () => {
 
     it('el mismo numero de registro en otra carga si se permite', async () => {
         const otra = await crearCarga({ fuenteId: await fuenteDe(cargaId), cargadoPor: usuarioId }, conexion);
-        const otroArchivo = await insertarArchivo(
-            { cargaId: otra, nombreOriginal: 'c.csv', nombreAlmacenado: `${randomUUID()}.csv`, tipoMime: 'text/csv', tamanoBytes: 1, sha256: 'c'.repeat(64), subidoPor: usuarioId },
-            conexion,
-        );
         await insertarRegistros(cargaId, archivoId, [registro(1)], conexion);
-        await expect(insertarRegistros(otra, otroArchivo, [registro(1)], conexion)).resolves.toBeUndefined();
+        // se reutiliza el mismo archivo solo para cumplir la clave foranea: lo que se prueba es la restriccion por carga
+        await expect(insertarRegistros(otra, archivoId, [registro(1)], conexion)).resolves.toBeUndefined();
     });
 
     it('trata comillas y sentencias SQL como simple texto', async () => {
