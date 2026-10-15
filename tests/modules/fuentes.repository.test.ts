@@ -78,16 +78,17 @@ describe('fuentes.repository (con la base real; todo se deshace)', () => {
     });
 
     it('cambia el estado y el filtro de listar lo respeta', async () => {
-        await crear({ ...base, codigo: 'prueba_a', creadoPor: usuarioId }, conexion);
+        const idA = await crear({ ...base, codigo: 'prueba_a', creadoPor: usuarioId }, conexion);
         const idB = await crear({ ...base, codigo: 'prueba_b', creadoPor: usuarioId }, conexion);
         await cambiarEstado(idB, 'inactiva', conexion);
 
-        const propias = (lista: { codigo: string }[]) => lista.filter((f) => f.codigo.startsWith('prueba_'));
+        // Se filtra por los ids creados aqui: la base puede tener otras fuentes (reales o de pruebas manuales)
+        const propias = (lista: { id: number }[]) => lista.filter((f) => f.id === idA || f.id === idB);
         const inactivas = propias(await listar('inactiva', conexion));
         const activas = propias(await listar('activa', conexion));
 
-        expect(inactivas.map((f) => f.codigo)).toEqual(['prueba_b']);
-        expect(activas.map((f) => f.codigo)).toEqual(['prueba_a']);
+        expect(inactivas.map((f) => f.id)).toEqual([idB]);
+        expect(activas.map((f) => f.id)).toEqual([idA]);
     });
 
     it('trata el texto como dato, nunca como SQL (consultas parametrizadas)', async () => {
