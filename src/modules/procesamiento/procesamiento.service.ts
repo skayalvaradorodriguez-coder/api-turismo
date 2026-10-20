@@ -1,4 +1,4 @@
-﻿import { readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { RAIZ_ORIGINALES } from '../../config/storage';
 import { extensionDe, rutaDentro } from '../../utils/archivos';
 import { AppError } from '../../utils/AppError';
@@ -33,6 +33,9 @@ export const CODIGO_FUENTE_CATASTRO = 'catastro_turistico';
 const MAX_BYTES_PROCESAR = 50 * 1024 * 1024;
 
 const ESTADOS_VALIDABLES: readonly EstadoCarga[] = ['recibida', 'validada'];
+
+/** Al procesar, la carga sube a nivel 2 (procesada). El nivel 3 (integrada) llegara con la integracion. */
+const NIVEL_INGRESO_PROCESADA = 2;
 
 export interface ResultadoProcesamiento {
     procesamiento: Procesamiento;
@@ -221,7 +224,7 @@ export async function procesarCarga(cargaId: number, actor: Actor): Promise<Resu
             if (await repo.existeProcesamientoCompletado(cargaId, 'procesamiento', conexion)) throw yaProcesada();
 
             // Comprobar y cambiar en una sola sentencia: si dos personas procesan a la vez, solo una gana
-            if (!(await cargasRepo.transicionarEstado(cargaId, ['validada'], 'procesada', null, conexion))) {
+            if (!(await cargasRepo.transicionarEstado(cargaId, ['validada'], 'procesada', null, conexion, NIVEL_INGRESO_PROCESADA))) {
                 throw new AppError('La carga ya no esta validada', 409, 'CARGA_NO_PROCESABLE');
             }
 
@@ -250,6 +253,7 @@ export async function procesarCarga(cargaId: number, actor: Actor): Promise<Resu
                         archivoId: archivo.id,
                         totalFilas: resultado.totalFilas,
                         registrosGuardados: resultado.registros.length,
+                        nivelIngreso: NIVEL_INGRESO_PROCESADA,
                         totalAlertas: resultado.totalAlertas,
                     },
                     ip: actor.ip ?? null,

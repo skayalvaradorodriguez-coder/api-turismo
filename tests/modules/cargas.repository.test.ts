@@ -121,6 +121,32 @@ describe('cargas.repository (con la base real; todo se deshace)', () => {
         expect((await buscarCargaPorId(id, conexion))?.estado).toBe('recibida');
     });
 
+    it('transicionarEstado con nivelIngreso sube el nivel junto con el estado y nunca lo baja', async () => {
+        const id = await crearCarga({ fuenteId, cargadoPor: usuarioId }, conexion);
+        expect((await buscarCargaPorId(id, conexion))?.nivelIngreso).toBe(1);
+
+        // Sin nivelIngreso el nivel no cambia
+        expect(await transicionarEstado(id, ['recibida'], 'validada', null, conexion)).toBe(true);
+        expect((await buscarCargaPorId(id, conexion))?.nivelIngreso).toBe(1);
+
+        // Con nivelIngreso sube en la misma sentencia que cambia el estado
+        expect(await transicionarEstado(id, ['validada'], 'procesada', null, conexion, 2)).toBe(true);
+        const procesada = await buscarCargaPorId(id, conexion);
+        expect([procesada?.estado, procesada?.nivelIngreso]).toEqual(['procesada', 2]);
+
+        // Un nivel menor no la baja
+        expect(await transicionarEstado(id, ['procesada'], 'rechazada', 'Prueba de nivel', conexion, 1)).toBe(true);
+        expect((await buscarCargaPorId(id, conexion))?.nivelIngreso).toBe(2);
+    });
+
+    it('si la transicion no se aplica, el nivel tampoco cambia', async () => {
+        const id = await crearCarga({ fuenteId, cargadoPor: usuarioId }, conexion);
+
+        expect(await transicionarEstado(id, ['validada'], 'procesada', null, conexion, 2)).toBe(false);
+
+        const carga = await buscarCargaPorId(id, conexion);
+        expect([carga?.estado, carga?.nivelIngreso]).toEqual(['recibida', 1]);
+    });
     it('un archivo nuevo con el mismo nombre es la version 2 y la anterior deja de ser vigente', async () => {
         const cargaId = await crearCarga({ fuenteId, cargadoPor: usuarioId }, conexion);
         await insertarArchivo(archivo(cargaId), conexion);

@@ -218,6 +218,7 @@ export async function listarCargas(
 /**
  * Cambia el estado SOLO si la carga esta en alguno de los estados de origen (comprobar y cambiar en una
  * sola sentencia: si dos personas actuan a la vez, solo una gana). Devuelve true si hubo cambio.
+ * Si se indica nivelIngreso, el nivel sube a ese valor en la misma sentencia (nunca baja).
  */
 export async function transicionarEstado(
     id: number,
@@ -225,12 +226,14 @@ export async function transicionarEstado(
     hacia: EstadoCarga,
     motivoRechazo: string | null,
     ejecutor: Ejecutor = pool,
+    nivelIngreso?: number,
 ): Promise<boolean> {
     if (desde.length === 0) return false;
     const marcas = desde.map(() => '?').join(', ');
+    const subeNivel = nivelIngreso === undefined ? '' : ', nivel_ingreso = GREATEST(nivel_ingreso, ?)';
     const [resultado] = await ejecutor.execute<ResultSetHeader>(
-        `UPDATE cargas SET estado = ?, motivo_rechazo = ? WHERE id = ? AND estado IN (${marcas})`,
-        [hacia, motivoRechazo, id, ...desde],
+        `UPDATE cargas SET estado = ?, motivo_rechazo = ?${subeNivel} WHERE id = ? AND estado IN (${marcas})`,
+        [hacia, motivoRechazo, ...(nivelIngreso === undefined ? [] : [nivelIngreso]), id, ...desde],
     );
     return resultado.affectedRows === 1;
 }

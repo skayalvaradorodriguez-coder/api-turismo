@@ -1,4 +1,4 @@
-﻿import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -231,6 +231,7 @@ describe('procesarCarga', () => {
 
         expect(r.estadoCarga).toBe('procesada');
         expect(llamadas(cargasRepo.transicionarEstado)[0]?.slice(0, 4)).toEqual([10, ['validada'], 'procesada', null]);
+        expect(llamadas(cargasRepo.transicionarEstado)[0]?.[5]).toBe(2); // al procesar sube a nivel 2
         expect(llamadas(repo.crearProcesamiento)[0]?.[0]).toEqual({ cargaId: 10, archivoId: 55, tipo: 'procesamiento', ejecutadoPor: 7 });
 
         const [cargaId, archivoId, registros] = llamadas(repo.insertarRegistros)[0] as [number, number, Array<{ numeroRegistro: string }>];
@@ -238,7 +239,7 @@ describe('procesarCarga', () => {
         expect(llamadas(repo.finalizarProcesamiento)[0]?.[1]).toEqual({ estado: 'completado', totalFilas: 2, totalErrores: 0, totalAlertas: 0 });
         expect(llamadas(registrar)[0]?.[0]).toMatchObject({
             usuarioId: 7, accion: 'procesamiento.procesar', entidad: 'carga', entidadId: 10,
-            detalle: { procesamientoId: 91, archivoId: 55, totalFilas: 2, registrosGuardados: 2 },
+            detalle: { procesamientoId: 91, archivoId: 55, totalFilas: 2, registrosGuardados: 2, nivelIngreso: 2 },
         });
     });
 
