@@ -1,11 +1,11 @@
 ﻿import type { ResultSetHeader, RowDataPacket } from 'mysql2';
 import { pool } from '../../config/db';
 import type { Ejecutor } from '../auditoria/auditoria.repository';
-import type { Hallazgo, RegistroCatastro, Severidad, SimboloCategoria } from './catastro.reglas';
 
 // ---------------------------------------------------------------
 // Tipos que entrega la API (camelCase)
 // ---------------------------------------------------------------
+export type Severidad = 'error' | 'alerta';
 export type TipoProcesamiento = 'validacion' | 'procesamiento';
 export type EstadoProcesamiento = 'en_curso' | 'completado' | 'fallido';
 
@@ -39,6 +39,16 @@ export interface ResultadoFinal {
     mensajeError?: string | null;
 }
 
+export interface Hallazgo {
+    fila: number | null; // numero de fila de datos (la primera despues del encabezado es la 1); null si es del archivo completo
+    columna: string | null;
+    regla: string;
+    severidad: Severidad;
+    mensaje: string;
+    valorOriginal: string | null;
+    valorCorregido: string | null;
+}
+
 export interface HallazgoGuardado extends Hallazgo {
     id: number;
     procesamientoId: number;
@@ -55,23 +65,6 @@ export interface ResumenHallazgo {
     regla: string;
     severidad: Severidad;
     total: number;
-}
-
-/** Registro del Catastro tal como se entrega: ruc y propietario son null si no se piden los datos sensibles. */
-export interface RegistroGuardado extends Omit<RegistroCatastro, 'ruc' | 'propietario'> {
-    id: number;
-    cargaId: number;
-    archivoId: number;
-    ruc: string | null;
-    propietario: string | null;
-}
-
-export interface FiltroRegistros {
-    canton?: string;
-    parroquia?: string;
-    clasificacion?: string;
-    limite: number;
-    pagina: number;
 }
 
 // ---------------------------------------------------------------
@@ -104,28 +97,6 @@ interface HallazgoRow extends RowDataPacket {
     valor_corregido: string | null;
 }
 
-interface RegistroRow extends RowDataPacket {
-    id: number;
-    carga_id: number;
-    archivo_id: number;
-    fila_origen: number;
-    numero_registro: string;
-    ruc: string | null;
-    nombre_comercial: string | null;
-    actividad: string;
-    clasificacion: string;
-    categoria: string;
-    categoria_original: string;
-    categoria_simbolo: SimboloCategoria | null;
-    categoria_nivel: number | null;
-    propietario: string | null;
-    provincia: string;
-    canton: string;
-    parroquia: string;
-    parroquia_original: string;
-    estado_registro: string;
-}
-
 const SELECT_PROCESAMIENTO = `
   SELECT id, carga_id, archivo_id, tipo, estado, total_filas, total_errores, total_alertas,
          mensaje_error, ejecutado_por, iniciado_at, finalizado_at
@@ -134,17 +105,6 @@ const SELECT_PROCESAMIENTO = `
 const SELECT_HALLAZGO = `
   SELECT id, procesamiento_id, fila, columna, regla, severidad, mensaje, valor_original, valor_corregido
     FROM hallazgos`;
-
-// Los datos sensibles (ruc y propietario) solo se leen de la base si se piden de forma explicita
-function selectRegistro(incluirSensibles: boolean): string {
-    const ruc = incluirSensibles ? 'ruc' : 'NULL AS ruc';
-    const propietario = incluirSensibles ? 'propietario' : 'NULL AS propietario';
-    return `
-  SELECT id, carga_id, archivo_id, fila_origen, numero_registro, ${ruc}, nombre_comercial, actividad,
-         clasificacion, categoria, categoria_original, categoria_simbolo, categoria_nivel, ${propietario},
-         provincia, canton, parroquia, parroquia_original, estado_registro
-    FROM catastro_establecimientos`;
-}
 
 function aProcesamiento(f: ProcesamientoRow): Procesamiento {
     return {
@@ -174,30 +134,6 @@ function aHallazgo(f: HallazgoRow): HallazgoGuardado {
         mensaje: f.mensaje,
         valorOriginal: f.valor_original,
         valorCorregido: f.valor_corregido,
-    };
-}
-
-function aRegistro(f: RegistroRow): RegistroGuardado {
-    return {
-        id: f.id,
-        cargaId: f.carga_id,
-        archivoId: f.archivo_id,
-        filaOrigen: f.fila_origen,
-        numeroRegistro: f.numero_registro,
-        ruc: f.ruc,
-        nombreComercial: f.nombre_comercial,
-        actividad: f.actividad,
-        clasificacion: f.clasificacion,
-        categoria: f.categoria,
-        categoriaOriginal: f.categoria_original,
-        categoriaSimbolo: f.categoria_simbolo,
-        categoriaNivel: f.categoria_nivel,
-        propietario: f.propietario,
-        provincia: f.provincia,
-        canton: f.canton,
-        parroquia: f.parroquia,
-        parroquiaOriginal: f.parroquia_original,
-        estadoRegistro: f.estado_registro,
     };
 }
 
@@ -309,83 +245,4 @@ export async function resumirHallazgos(procesamientoId: number, ejecutor: Ejecut
         [procesamientoId],
     );
     return filas.map((f) => ({ regla: String(f['regla']), severidad: f['severidad'] as Severidad, total: Number(f['total']) }));
-}
-
-// ---------------------------------------------------------------
-// Registros del Catastro
-// ---------------------------------------------------------------
-
-/**
- * Guarda los registros procesados de una carga. Lanza ER_DUP_ENTRY ('uq_catastro_carga_registro' o
- * 'uq_catastro_carga_fila') si ya habia registros con ese numero de registro o esa fila en la misma carga.
- * Debe ejecutarse dentro de una transaccion: si falla un lote, no queda ninguno guardado.
- */
-export async function insertarRegistros(cargaId: number, archivoId: number, registros: readonly RegistroCatastro[], ejecutor: Ejecutor = pool): Promise<void> {
-    for (const lote of porLotes(registros)) {
-        const marcas = lote.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
-        await ejecutor.execute(
-            `INSERT INTO catastro_establecimientos
-         (carga_id, archivo_id, fila_origen, numero_registro, ruc, nombre_comercial, actividad, clasificacion,
-          categoria, categoria_original, categoria_simbolo, categoria_nivel, propietario, provincia, canton,
-          parroquia, parroquia_original, estado_registro)
-       VALUES ${marcas}`,
-            lote.flatMap((r) => [
-                cargaId,
-                archivoId,
-                r.filaOrigen,
-                r.numeroRegistro,
-                r.ruc,
-                r.nombreComercial,
-                r.actividad,
-                r.clasificacion,
-                r.categoria,
-                r.categoriaOriginal,
-                r.categoriaSimbolo,
-                r.categoriaNivel,
-                r.propietario,
-                r.provincia,
-                r.canton,
-                r.parroquia,
-                r.parroquiaOriginal,
-                r.estadoRegistro,
-            ]),
-        );
-    }
-}
-
-export async function contarRegistros(cargaId: number, ejecutor: Ejecutor = pool): Promise<number> {
-    const [filas] = await ejecutor.execute<RowDataPacket[]>('SELECT COUNT(*) AS total FROM catastro_establecimientos WHERE carga_id = ?', [cargaId]);
-    return Number(filas[0]?.['total'] ?? 0);
-}
-
-/**
- * Lista los registros de una carga. incluirSensibles=false (lo normal) devuelve ruc y propietario como null
- * sin siquiera leerlos de la base; solo quien tiene permiso para ver datos sensibles debe pedirlos.
- */
-export async function listarRegistros(
-    cargaId: number,
-    filtro: FiltroRegistros,
-    incluirSensibles: boolean,
-    ejecutor: Ejecutor = pool,
-): Promise<{ registros: RegistroGuardado[]; total: number }> {
-    const condiciones = ['carga_id = ?'];
-    const parametros: Array<string | number> = [cargaId];
-    if (filtro.canton !== undefined) {
-        condiciones.push('canton = ?');
-        parametros.push(filtro.canton);
-    }
-    if (filtro.parroquia !== undefined) {
-        condiciones.push('parroquia = ?');
-        parametros.push(filtro.parroquia);
-    }
-    if (filtro.clasificacion !== undefined) {
-        condiciones.push('clasificacion = ?');
-        parametros.push(filtro.clasificacion);
-    }
-    const donde = `WHERE ${condiciones.join(' AND ')}`;
-    const { limite, desplazamiento } = paginar(filtro.limite, filtro.pagina);
-
-    const [filas] = await ejecutor.execute<RegistroRow[]>(`${selectRegistro(incluirSensibles)} ${donde} ORDER BY fila_origen LIMIT ${limite} OFFSET ${desplazamiento}`, parametros);
-    const [conteo] = await ejecutor.execute<RowDataPacket[]>(`SELECT COUNT(*) AS total FROM catastro_establecimientos ${donde}`, parametros);
-    return { registros: filas.map(aRegistro), total: Number(conteo[0]?.['total'] ?? 0) };
 }

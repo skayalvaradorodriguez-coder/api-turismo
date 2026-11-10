@@ -160,7 +160,7 @@ describe('cargas (HTTP): crear con archivo', () => {
     it.each([SUPER_ADMIN, ADMIN])('el usuario %s puede crear; el actor sale de la sesion', async (id) => {
         const res = await como(request(app).post(BASE), id)
             .field('fuenteId', '3')
-            .field('descripcion', 'Catastro 2026')
+            .field('descripcion', 'Encuesta 2026')
             .field('periodoDesde', '2026-01-01')
             .field('metadatos', JSON.stringify({ cobertura: 'Provincia' }))
             .attach('archivo', csv, 'santa_elena.csv');
@@ -175,7 +175,7 @@ describe('cargas (HTTP): crear con archivo', () => {
         ];
         expect(datos).toMatchObject({
             fuenteId: 3,
-            descripcion: 'Catastro 2026',
+            descripcion: 'Encuesta 2026',
             periodoDesde: '2026-01-01',
             nivelIngreso: 1,
             metadatos: { cobertura: 'Provincia' },
@@ -188,10 +188,10 @@ describe('cargas (HTTP): crear con archivo', () => {
     });
 
     it('conserva las tildes y la enie del nombre del archivo', async () => {
-        await como(request(app).post(BASE), ADMIN).field('fuenteId', '3').attach('archivo', csv, 'Catastro_año_Salinas_ñandú.csv');
+        await como(request(app).post(BASE), ADMIN).field('fuenteId', '3').attach('archivo', csv, 'Encuesta_año_Salinas_ñandú.csv');
 
         const archivo = m(servicio.crearCarga).mock.calls[0]?.[1] as { nombreOriginal: string };
-        expect(archivo.nombreOriginal).toBe('Catastro_año_Salinas_ñandú.csv');
+        expect(archivo.nombreOriginal).toBe('Encuesta_año_Salinas_ñandú.csv');
     });
 
     it('sin archivo responde 422', async () => {
@@ -327,7 +327,7 @@ describe('cargas (HTTP): consultas y descarga', () => {
         await writeFile(ruta, csv);
         m(servicio.prepararDescarga).mockResolvedValue({
             ruta,
-            nombreOriginal: 'Catastro_año.csv',
+            nombreOriginal: 'Encuesta_año.csv',
             tipoMime: 'text/csv',
             tamanoBytes: csv.length,
         });
@@ -337,7 +337,7 @@ describe('cargas (HTTP): consultas y descarga', () => {
         expect(res.status).toBe(200);
         expect(res.headers['content-type']).toContain('text/csv');
         expect(res.headers['content-disposition']).toMatch(/^attachment;/);
-        expect(decodeURIComponent(res.headers['content-disposition'] as string)).toContain('Catastro_año.csv');
+        expect(decodeURIComponent(res.headers['content-disposition'] as string)).toContain('Encuesta_año.csv');
         expect(res.headers['x-content-type-options']).toBe('nosniff');
         expect(res.headers['cache-control']).toBe('private, no-store');
         expect(res.text).toBe(csv.toString());

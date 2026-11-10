@@ -3,21 +3,18 @@ import { randomUUID } from 'node:crypto';
 import type { PoolConnection } from 'mysql2/promise';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { pool } from '../../src/config/db';
-import { crearCarga, esDuplicadoDe } from '../../src/modules/cargas/cargas.repository';
-import type { Hallazgo, RegistroCatastro } from '../../src/modules/procesamiento/catastro.reglas';
+import { crearCarga } from '../../src/modules/cargas/cargas.repository';
 import {
     buscarProcesamiento,
-    contarRegistros,
     crearProcesamiento,
     existeProcesamientoCompletado,
     finalizarProcesamiento,
     insertarHallazgos,
-    insertarRegistros,
     listarHallazgos,
     listarProcesamientos,
-    listarRegistros,
     resumirHallazgos,
 } from '../../src/modules/procesamiento/procesamiento.repository';
+import type { Hallazgo } from '../../src/modules/procesamiento/procesamiento.repository';
 
 let conexion: PoolConnection;
 let usuarioId: number;
@@ -49,7 +46,7 @@ async function crearArchivoDirecto(carga: number): Promise<number> {
     const [r] = await conexion.execute<ResultSetHeader>(
         `INSERT INTO archivos_originales
        (carga_id, nombre_original, nombre_almacenado, tipo_mime, tamano_bytes, sha256, version, vigente, subido_por)
-     VALUES (?, 'catastro.csv', ?, 'text/csv', 10, ?, 1, 1, ?)`,
+     VALUES (?, 'datos.csv', ?, 'text/csv', 10, ?, 1, 1, ?)`,
         [carga, `${randomUUID()}.csv`, randomUUID().replaceAll('-', '').padEnd(64, '0'), usuarioId],
     );
     return r.insertId;
@@ -72,26 +69,6 @@ const hallazgo = (sobrescribir: Partial<Hallazgo> = {}): Hallazgo => ({
     mensaje: 'Se corrigio',
     valorOriginal: 'MANGLARLTO',
     valorCorregido: 'MANGLARALTO',
-    ...sobrescribir,
-});
-
-const registro = (n: number, sobrescribir: Partial<RegistroCatastro> = {}): RegistroCatastro => ({
-    filaOrigen: n,
-    numeroRegistro: `0100090174001.001.${String(1000000 + n)}`,
-    ruc: '0100090174001',
-    nombreComercial: `HOSTERIA ${n}`,
-    actividad: 'ALOJAMIENTO',
-    clasificacion: 'HOSTERÍA',
-    categoria: '3 Estrellas',
-    categoriaOriginal: '3 Estrellas',
-    categoriaSimbolo: 'estrellas',
-    categoriaNivel: 3,
-    propietario: 'PEREZ JUAN',
-    provincia: 'SANTA ELENA',
-    canton: 'SANTA ELENA',
-    parroquia: 'COLONCHE',
-    parroquiaOriginal: 'COLONCHE',
-    estadoRegistro: 'RATIFICADO',
     ...sobrescribir,
 });
 
@@ -212,97 +189,5 @@ describe('procesamiento.repository: hallazgos', () => {
         const texto = "x'; DROP TABLE hallazgos; --";
         await insertarHallazgos(procesamientoId, [hallazgo({ valorOriginal: texto })], conexion);
         expect((await listarHallazgos(procesamientoId, { limite: 50, pagina: 1 }, conexion)).hallazgos[0]?.valorOriginal).toBe(texto);
-    });
-});
-
-describe('procesamiento.repository: registros del Catastro', () => {
-    it('guarda mas de un lote (1100 registros) y los cuenta', async () => {
-        await insertarRegistros(cargaId, archivoId, Array.from({ length: 1100 }, (_, i) => registro(i + 1)), conexion);
-        expect(await contarRegistros(cargaId, conexion)).toBe(1100);
-    });
-
-    it('una lista vacia no hace nada', async () => {
-        await insertarRegistros(cargaId, archivoId, [], conexion);
-        expect(await contarRegistros(cargaId, conexion)).toBe(0);
-    });
-
-    it('lista con paginas y en el orden del archivo original', async () => {
-        await insertarRegistros(cargaId, archivoId, [3, 1, 2, 5, 4].map((n) => registro(n)), conexion);
-        const p = await listarRegistros(cargaId, { limite: 2, pagina: 2 }, true, conexion);
-
-        expect(p.total).toBe(5);
-        expect(p.registros.map((r) => r.filaOrigen)).toEqual([3, 4]);
-    });
-
-    it('conserva los valores nulos, el simbolo y el nivel de la categoria', async () => {
-        await insertarRegistros(cargaId, archivoId, [registro(1, { nombreComercial: null, propietario: null, categoria: 'Categoría Única', categoriaOriginal: 'Categoria Unica', categoriaSimbolo: 'unica', categoriaNivel: null })], conexion);
-        const { registros } = await listarRegistros(cargaId, { limite: 10, pagina: 1 }, true, conexion);
-
-        expect(registros[0]).toMatchObject({ cargaId, archivoId, nombreComercial: null, propietario: null, categoria: 'Categoría Única', categoriaOriginal: 'Categoria Unica', categoriaSimbolo: 'unica', categoriaNivel: null, ruc: '0100090174001' });
-    });
-
-    it('el RUC conserva los ceros a la izquierda', async () => {
-        await insertarRegistros(cargaId, archivoId, [registro(1, { ruc: '0000000000001' })], conexion);
-        expect((await listarRegistros(cargaId, { limite: 10, pagina: 1 }, true, conexion)).registros[0]?.ruc).toBe('0000000000001');
-    });
-
-    it('sin permiso para datos sensibles, ruc y propietario salen vacios', async () => {
-        await insertarRegistros(cargaId, archivoId, [registro(1)], conexion);
-
-        const oculto = (await listarRegistros(cargaId, { limite: 10, pagina: 1 }, false, conexion)).registros[0];
-        expect(oculto?.ruc).toBeNull();
-        expect(oculto?.propietario).toBeNull();
-        expect(oculto?.numeroRegistro).toBe('0100090174001.001.1000001');
-
-        const visible = (await listarRegistros(cargaId, { limite: 10, pagina: 1 }, true, conexion)).registros[0];
-        expect(visible?.ruc).toBe('0100090174001');
-        expect(visible?.propietario).toBe('PEREZ JUAN');
-    });
-
-    it('filtra por canton, parroquia y clasificacion', async () => {
-        await insertarRegistros(
-            cargaId,
-            archivoId,
-            [
-                registro(1),
-                registro(2, { canton: 'SALINAS', parroquia: 'ANCONCITO' }),
-                registro(3, { canton: 'SALINAS', parroquia: 'SALINAS', clasificacion: 'HOTEL' }),
-            ],
-            conexion,
-        );
-        const pedir = (f: object) => listarRegistros(cargaId, { limite: 50, pagina: 1, ...f }, false, conexion);
-
-        expect((await pedir({ canton: 'SALINAS' })).total).toBe(2);
-        expect((await pedir({ parroquia: 'ANCONCITO' })).registros.map((r) => r.filaOrigen)).toEqual([2]);
-        expect((await pedir({ canton: 'SALINAS', clasificacion: 'HOTEL' })).registros.map((r) => r.filaOrigen)).toEqual([3]);
-    });
-
-    it('un numero de registro repetido en la misma carga se rechaza y no queda ninguno de ese lote', async () => {
-        const error = await insertarRegistros(cargaId, archivoId, [registro(1), registro(2, { numeroRegistro: registro(1).numeroRegistro })], conexion).then(
-            () => null,
-            (e: unknown) => e,
-        );
-        expect(esDuplicadoDe(error, 'uq_catastro_carga_registro')).toBe(true);
-    });
-
-    it('una fila de origen repetida en la misma carga se rechaza', async () => {
-        const error = await insertarRegistros(cargaId, archivoId, [registro(1), registro(1, { numeroRegistro: '0100090174001.001.9999999' })], conexion).then(
-            () => null,
-            (e: unknown) => e,
-        );
-        expect(esDuplicadoDe(error, 'uq_catastro_carga_fila')).toBe(true);
-    });
-
-    it('el mismo numero de registro en otra carga si se permite', async () => {
-        const otra = await crearCarga({ fuenteId: await fuenteDe(cargaId), cargadoPor: usuarioId }, conexion);
-        await insertarRegistros(cargaId, archivoId, [registro(1)], conexion);
-        // se reutiliza el mismo archivo solo para cumplir la clave foranea: lo que se prueba es la restriccion por carga
-        await expect(insertarRegistros(otra, archivoId, [registro(1)], conexion)).resolves.toBeUndefined();
-    });
-
-    it('trata comillas y sentencias SQL como simple texto', async () => {
-        const texto = "x'; DROP TABLE catastro_establecimientos; --";
-        await insertarRegistros(cargaId, archivoId, [registro(1, { nombreComercial: texto })], conexion);
-        expect((await listarRegistros(cargaId, { limite: 10, pagina: 1 }, false, conexion)).registros[0]?.nombreComercial).toBe(texto);
     });
 });

@@ -15,8 +15,4 @@ SELECT 'OK hallazgo' AS prueba;
 -- Deben fallar:
 INSERT INTO procesamientos (carga_id, archivo_id, tipo, ejecutado_por) VALUES (@c, @a, 'otro', @u);
 INSERT INTO hallazgos (procesamiento_id, regla, severidad, mensaje) VALUES (@p, 'r', 'grave', 'm');
-INSERT INTO catastro_establecimientos (carga_id, archivo_id, fila_origen, numero_registro, ruc, actividad, clasificacion, categoria, categoria_original, categoria_nivel, provincia, canton, parroquia, parroquia_original, estado_registro) VALUES (@c, @a, 1, '0000000000001.001.0000001', '0000000000001', 'A', 'C', 'Unica', 'Unica', 9, 'SANTA ELENA', 'SALINAS', 'SALINAS', 'SALINAS', 'ACTIVO');
-INSERT INTO catastro_establecimientos (carga_id, archivo_id, fila_origen, numero_registro, ruc, actividad, clasificacion, categoria, categoria_original, provincia, canton, parroquia, parroquia_original, estado_registro) VALUES (@c, @a, 1, '0000000000001.001.0000001', '0000000000001', 'A', 'C', 'Unica', 'Unica', 'SANTA ELENA', 'SALINAS', 'SALINAS', 'SALINAS', 'ACTIVO');
-INSERT INTO catastro_establecimientos (carga_id, archivo_id, fila_origen, numero_registro, ruc, actividad, clasificacion, categoria, categoria_original, provincia, canton, parroquia, parroquia_original, estado_registro) VALUES (@c, @a, 2, '0000000000001.001.0000001', '0000000000001', 'A', 'C', 'Unica', 'Unica', 'SANTA ELENA', 'SALINAS', 'SALINAS', 'SALINAS', 'ACTIVO');
-SELECT 'OK catastro (1 fila)' AS prueba, COUNT(*) AS filas FROM catastro_establecimientos WHERE carga_id = @c;
 ROLLBACK;

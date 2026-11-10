@@ -30,7 +30,6 @@ const TABLAS = [
     'bitacora',
     'procesamientos',
     'hallazgos',
-    'catastro_establecimientos',
 ];
 
 describe('permisos del usuario de la aplicacion', () => {

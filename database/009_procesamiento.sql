@@ -41,36 +41,3 @@ CREATE TABLE IF NOT EXISTS hallazgos (
     CONSTRAINT fk_hallazgos_procesamiento FOREIGN KEY (procesamiento_id) REFERENCES procesamientos (id),
     CONSTRAINT chk_hallazgos_severidad CHECK (severidad IN ('error', 'alerta'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Registros del Catastro Turistico ya procesados. Datos sensibles: ruc y propietario
-CREATE TABLE IF NOT EXISTS catastro_establecimientos (
-    id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    carga_id            BIGINT UNSIGNED NOT NULL,
-    archivo_id          BIGINT UNSIGNED NOT NULL,
-    fila_origen         INT UNSIGNED NOT NULL,
-    numero_registro     VARCHAR(40)  NOT NULL,
-    ruc                 CHAR(13)     NOT NULL,
-    nombre_comercial    VARCHAR(120) NULL,
-    actividad           VARCHAR(80)  NOT NULL,
-    clasificacion       VARCHAR(80)  NOT NULL,
-    categoria           VARCHAR(40)  NOT NULL,
-    categoria_original  VARCHAR(40)  NOT NULL,
-    categoria_simbolo   VARCHAR(10)  NULL,
-    categoria_nivel     TINYINT UNSIGNED NULL,
-    propietario         VARCHAR(120) NULL,
-    provincia           VARCHAR(40)  NOT NULL,
-    canton              VARCHAR(40)  NOT NULL,
-    parroquia           VARCHAR(60)  NOT NULL,
-    parroquia_original  VARCHAR(60)  NOT NULL,
-    estado_registro     VARCHAR(40)  NOT NULL,
-    created_at          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    UNIQUE KEY uq_catastro_carga_registro (carga_id, numero_registro),
-    UNIQUE KEY uq_catastro_carga_fila (carga_id, fila_origen),
-    KEY ix_catastro_canton_parroquia (canton, parroquia),
-    KEY ix_catastro_clasificacion (clasificacion),
-    CONSTRAINT fk_catastro_carga   FOREIGN KEY (carga_id)   REFERENCES cargas (id),
-    CONSTRAINT fk_catastro_archivo FOREIGN KEY (archivo_id) REFERENCES archivos_originales (id),
-    CONSTRAINT chk_catastro_simbolo CHECK (categoria_simbolo IS NULL OR categoria_simbolo IN ('estrellas','tenedores','copas','tazas','unica')),
-    CONSTRAINT chk_catastro_nivel   CHECK (categoria_nivel IS NULL OR categoria_nivel BETWEEN 1 AND 5)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

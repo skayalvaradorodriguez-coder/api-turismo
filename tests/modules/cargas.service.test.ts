@@ -99,7 +99,7 @@ beforeEach(async () => {
     await mkdir(carpetas.originales, { recursive: true });
     await mkdir(temporal, { recursive: true });
 
-    m(fuentes.buscarPorId).mockResolvedValue({ id: 1, estado: 'activa', codigo: 'catastro' });
+    m(fuentes.buscarPorId).mockResolvedValue({ id: 1, estado: 'activa', codigo: 'encuesta' });
     m(repo.estructuraPerteneceAFuente).mockResolvedValue(true);
     m(repo.crearCarga).mockResolvedValue(10);
     m(repo.insertarArchivo).mockResolvedValue(55);

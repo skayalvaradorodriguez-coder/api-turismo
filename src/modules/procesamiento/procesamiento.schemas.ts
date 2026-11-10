@@ -10,16 +10,6 @@ const entero = (etiqueta: string) =>
         .int({ error: `${etiqueta} no es valido` })
         .positive({ error: `${etiqueta} no es valido` });
 
-const textoFiltro = (etiqueta: string, max: number) =>
-    z.preprocess(
-        vacioAUndefined,
-        z
-            .string({ error: `${etiqueta} no es valido` })
-            .trim()
-            .max(max, { error: `${etiqueta} no puede pasar de ${max} caracteres` })
-            .optional(),
-    );
-
 const paginacion = {
     limite: z.preprocess(
         vacioAUndefined,
@@ -60,20 +50,4 @@ export const listarHallazgosQuerySchema = z.object({
     ...paginacion,
 });
 
-export const listarRegistrosQuerySchema = z.object({
-    canton: textoFiltro('El canton', 100),
-    parroquia: textoFiltro('La parroquia', 100),
-    clasificacion: textoFiltro('La clasificacion', 100),
-    // solo "true" o "false": cualquier otro valor se rechaza
-    sensibles: z.preprocess(
-        vacioAUndefined,
-        z
-            .enum(['true', 'false'], { error: 'El valor de "sensibles" debe ser true o false' })
-            .default('false')
-            .transform((valor) => valor === 'true'),
-    ),
-    ...paginacion,
-});
-
 export type ListarHallazgosQuery = z.infer<typeof listarHallazgosQuerySchema>;
-export type ListarRegistrosQuery = z.infer<typeof listarRegistrosQuerySchema>;

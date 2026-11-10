@@ -21,14 +21,14 @@ describe('crearFuenteSchema', () => {
     it('recorta espacios y convierte textos vacios en null', () => {
         const r = crearFuenteSchema.safeParse({
             ...minima,
-            nombre: '  Catastro Turistico  ',
+            nombre: '  Encuesta Turistica  ',
             descripcion: '   ',
             responsable: '',
             licenciaUso: null,
         });
         expect(r.success).toBe(true);
         if (r.success) {
-            expect(r.data.nombre).toBe('Catastro Turistico');
+            expect(r.data.nombre).toBe('Encuesta Turistica');
             expect(r.data.descripcion).toBeNull();
             expect(r.data.responsable).toBeNull();
             expect(r.data.licenciaUso).toBeNull();
