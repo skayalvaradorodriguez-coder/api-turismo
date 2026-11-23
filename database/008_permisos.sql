@@ -23,6 +23,8 @@ GRANT UPDATE (vigente)       ON web_turismo.archivos_originales TO 'turismo_app'
 GRANT SELECT, INSERT, UPDATE ON web_turismo.procesamientos      TO 'turismo_app'@'localhost';
 -- Lo procesado no se modifica: solo se agrega y se lee
 GRANT SELECT, INSERT         ON web_turismo.hallazgos                  TO 'turismo_app'@'localhost';
+-- Registros procesados: solo se agregan y se leen
+GRANT SELECT, INSERT         ON web_turismo.registros_procesados       TO 'turismo_app'@'localhost';
 -- La bitacora solo se lee y se agrega
 GRANT SELECT, INSERT         ON web_turismo.bitacora            TO 'turismo_app'@'localhost';
 
@@ -42,6 +44,7 @@ GRANT SELECT, INSERT         ON web_turismo.archivos_originales TO 'turismo_app'
 GRANT UPDATE (vigente)       ON web_turismo.archivos_originales TO 'turismo_app'@'127.0.0.1';
 GRANT SELECT, INSERT, UPDATE ON web_turismo.procesamientos      TO 'turismo_app'@'127.0.0.1';
 GRANT SELECT, INSERT         ON web_turismo.hallazgos                  TO 'turismo_app'@'127.0.0.1';
+GRANT SELECT, INSERT         ON web_turismo.registros_procesados       TO 'turismo_app'@'127.0.0.1';
 GRANT SELECT, INSERT         ON web_turismo.bitacora            TO 'turismo_app'@'127.0.0.1';
 
 FLUSH PRIVILEGES;

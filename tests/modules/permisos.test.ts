@@ -30,6 +30,7 @@ const TABLAS = [
     'bitacora',
     'procesamientos',
     'hallazgos',
+    'registros_procesados',
 ];
 
 describe('permisos del usuario de la aplicacion', () => {
@@ -40,6 +41,11 @@ describe('permisos del usuario de la aplicacion', () => {
     it('la bitacora no se puede editar ni borrar', async () => {
         expect(await codigoDeError('UPDATE bitacora SET accion = accion WHERE 1 = 0')).toMatch(DENEGADO);
         expect(await codigoDeError('DELETE FROM bitacora WHERE 1 = 0')).toMatch(DENEGADO);
+    });
+
+    it('los registros procesados solo se agregan: no se editan ni se borran', async () => {
+        expect(await codigoDeError('UPDATE registros_procesados SET datos = datos WHERE 1 = 0')).toMatch(DENEGADO);
+        expect(await codigoDeError('DELETE FROM registros_procesados WHERE 1 = 0')).toMatch(DENEGADO);
     });
 
     it('los archivos originales no se borran y solo se puede cambiar "vigente"', async () => {
