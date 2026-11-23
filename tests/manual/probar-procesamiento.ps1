@@ -54,7 +54,19 @@ try {
     if ($FuenteId -le 0) {
         $lista = (Invoke-Api 'GET' '/fuentes').data.fuentes
         $lista | ForEach-Object { Write-Host ("  {0}  {1}  {2}" -f $_.id, $_.codigo, $_.nombre) }
-        $FuenteId = [int](Read-Host 'Id de la fuente')
+        $respuesta = Read-Host "Id de la fuente (o escribe 'nueva' para crear la fuente Observatorio UPSE)"
+        if ($respuesta -eq 'nueva') {
+            $fuente = Invoke-Api 'POST' '/fuentes' @{
+                codigo      = 'observatorio_upse'
+                nombre      = 'Observatorio Turistico de la UPSE'
+                institucion = 'Universidad Estatal Peninsula de Santa Elena'
+                descripcion = 'Encuestas a turistas y datos de ocupacion de alojamientos levantados en los feriados de la provincia de Santa Elena.'
+            }
+            $FuenteId = [int]$fuente.data.fuente.id
+            Write-Host "Fuente creada con id $FuenteId" -ForegroundColor Green
+        } else {
+            $FuenteId = [int]$respuesta
+        }
     }
 
     # 3) Carga con el archivo (el original queda guardado sin modificar)
