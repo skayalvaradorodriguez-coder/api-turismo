@@ -29,6 +29,11 @@ const schema = z
         STORAGE_DIR: z.string().min(1).default('storage'),
         MAX_UPLOAD_MB: z.coerce.number().int().min(1).max(500).default(100),
 
+        // Servicio de procesamiento (Python). Sin clave, validar y procesar responden "no configurado"
+        PROCESAMIENTO_URL: z.preprocess(vacioAUndefined, z.url().default('http://127.0.0.1:8001')),
+        PROCESAMIENTO_CLAVE: z.preprocess(vacioAUndefined, z.string().min(32, 'debe tener al menos 32 caracteres').optional()),
+        PROCESAMIENTO_TIMEOUT_SEG: z.preprocess(vacioAUndefined, z.coerce.number().int().min(5).max(600).default(120)),
+
         // Acceso con Google: ID de cliente de Google Cloud Console (no es secreto). Vacio = el boton queda desactivado
         GOOGLE_CLIENT_ID: z.preprocess(
             vacioAUndefined,

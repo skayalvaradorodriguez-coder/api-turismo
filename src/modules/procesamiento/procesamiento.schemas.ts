@@ -38,8 +38,15 @@ export const procesamientoParamSchema = z.object({
     procesamientoId: entero('El id del procesamiento'),
 });
 
+export const ejecutarProcesamientoSchema = z.object({
+    tipo: z.enum(['validacion', 'procesamiento'], { error: 'El tipo no es valido' }),
+    archivoId: entero('El id del archivo'),
+});
+
+export type EjecutarProcesamientoInput = z.infer<typeof ejecutarProcesamientoSchema>;
+
 export const listarHallazgosQuerySchema = z.object({
-    severidad: z.preprocess(vacioAUndefined, z.enum(['error', 'alerta'], { error: 'La severidad no es valida' }).optional()),
+    severidad: z.preprocess(vacioAUndefined, z.enum(['error', 'alerta', 'cambio'], { error: 'La severidad no es valida' }).optional()),
     regla: z.preprocess(
         vacioAUndefined,
         z

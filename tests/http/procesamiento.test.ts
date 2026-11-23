@@ -26,6 +26,7 @@ vi.mock('../../src/modules/auth/auth.service', async (importOriginal) => {
 vi.mock('../../src/modules/procesamiento/procesamiento.service', () => ({
     listarProcesamientosDeCarga: vi.fn(),
     obtenerHallazgos: vi.fn(),
+    ejecutarProcesamiento: vi.fn(),
 }));
 
 import { app } from '../../src/app';
@@ -48,6 +49,7 @@ beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(servicio.listarProcesamientosDeCarga).mockResolvedValue([]);
     vi.mocked(servicio.obtenerHallazgos).mockResolvedValue({ hallazgos: [], total: 0, resumen: [] });
+    vi.mocked(servicio.ejecutarProcesamiento).mockResolvedValue({ registrosGuardados: 0 } as never);
 });
 
 describe('GET /cargas/:id/procesamientos', () => {
@@ -88,5 +90,36 @@ describe('GET /cargas/:id/procesamientos/:procesamientoId/hallazgos', () => {
 
     it('un id de procesamiento invalido responde 422', async () => {
         expect((await como(request(app).get(`${BASE}/10/procesamientos/x/hallazgos`), ADMIN)).status).toBe(422);
+    });
+});
+
+describe('POST /cargas/:id/procesamientos', () => {
+    const url = `${BASE}/10/procesamientos`;
+    const cuerpo = { tipo: 'procesamiento', archivoId: 55 };
+
+    it('sin sesion 401; investigador y externo 403 (solo administran los administradores)', async () => {
+        expect((await request(app).post(url).send(cuerpo)).status).toBe(401);
+        expect((await como(request(app).post(url).send(cuerpo), INVESTIGADOR)).status).toBe(403);
+        expect((await como(request(app).post(url).send(cuerpo), EXTERNO)).status).toBe(403);
+        expect(servicio.ejecutarProcesamiento).not.toHaveBeenCalled();
+    });
+
+    it.each([SUPER_ADMIN, ADMIN])('el usuario %i ejecuta y el actor sale de la sesion', async (usuario) => {
+        const res = await como(request(app).post(url).send({ ...cuerpo, ejecutadoPor: 999 }), usuario);
+        expect(res.status).toBe(201);
+        expect(res.body).toEqual({ ok: true, data: { registrosGuardados: 0 } });
+        const [carga, entrada, actor] = vi.mocked(servicio.ejecutarProcesamiento).mock.calls.at(-1) ?? [];
+        expect(carga).toBe(10);
+        expect(entrada).toEqual({ tipo: 'procesamiento', archivoId: 55 });
+        expect(actor).toMatchObject({ id: usuario });
+    });
+
+    it.each([{ tipo: 'otro', archivoId: 55 }, { tipo: 'validacion' }, { tipo: 'validacion', archivoId: 0 }, { tipo: 'validacion', archivoId: 'x' }, {}])('el cuerpo %j responde 422', async (malo) => {
+        expect((await como(request(app).post(url).send(malo), ADMIN)).status).toBe(422);
+        expect(servicio.ejecutarProcesamiento).not.toHaveBeenCalled();
+    });
+
+    it('un id de carga invalido responde 422', async () => {
+        expect((await como(request(app).post(`${BASE}/x/procesamientos`).send(cuerpo), ADMIN)).status).toBe(422);
     });
 });

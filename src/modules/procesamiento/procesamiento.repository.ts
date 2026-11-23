@@ -5,7 +5,7 @@ import type { Ejecutor } from '../auditoria/auditoria.repository';
 // ---------------------------------------------------------------
 // Tipos que entrega la API (camelCase)
 // ---------------------------------------------------------------
-export type Severidad = 'error' | 'alerta';
+export type Severidad = 'error' | 'alerta' | 'cambio';
 export type TipoProcesamiento = 'validacion' | 'procesamiento';
 export type EstadoProcesamiento = 'en_curso' | 'completado' | 'fallido';
 
@@ -137,6 +137,13 @@ function aHallazgo(f: HallazgoRow): HallazgoGuardado {
     };
 }
 
+/** Un registro que salio del procesamiento, con sus datos ya normalizados. */
+export interface RegistroNuevo {
+    identificador: string;
+    filaOrigen: number; // fila del archivo (el encabezado es la fila 1)
+    datos: Record<string, unknown>;
+}
+
 // Las inserciones grandes se hacen por lotes para no pasar de los limites de MySQL
 const TAMANO_LOTE = 500;
 
@@ -208,6 +215,31 @@ export async function insertarHallazgos(procesamientoId: number, hallazgos: read
             `INSERT INTO hallazgos (procesamiento_id, fila, columna, regla, severidad, mensaje, valor_original, valor_corregido)
        VALUES ${marcas}`,
             lote.flatMap((h) => [procesamientoId, h.fila, h.columna, h.regla, h.severidad, h.mensaje, h.valorOriginal, h.valorCorregido]),
+        );
+    }
+}
+
+// ---------------------------------------------------------------
+// Registros procesados (solo se agregan y se leen)
+// ---------------------------------------------------------------
+
+// Cada registro lleva su JSON completo: lotes chicos para no pasar de max_allowed_packet
+const LOTE_REGISTROS = 100;
+
+export async function insertarRegistros(
+    procesamientoId: number,
+    cargaId: number,
+    estructura: string,
+    registros: readonly RegistroNuevo[],
+    ejecutor: Ejecutor = pool,
+): Promise<void> {
+    for (let i = 0; i < registros.length; i += LOTE_REGISTROS) {
+        const lote = registros.slice(i, i + LOTE_REGISTROS);
+        const marcas = lote.map(() => '(?, ?, ?, ?, ?, ?)').join(', ');
+        await ejecutor.execute(
+            `INSERT INTO registros_procesados (procesamiento_id, carga_id, identificador, fila_origen, estructura, datos)
+       VALUES ${marcas}`,
+            lote.flatMap((r) => [procesamientoId, cargaId, r.identificador, r.filaOrigen, estructura, JSON.stringify(r.datos)]),
         );
     }
 }

@@ -10,6 +10,7 @@ import {
     existeProcesamientoCompletado,
     finalizarProcesamiento,
     insertarHallazgos,
+    insertarRegistros,
     listarHallazgos,
     listarProcesamientos,
     resumirHallazgos,
@@ -189,5 +190,28 @@ describe('procesamiento.repository: hallazgos', () => {
         const texto = "x'; DROP TABLE hallazgos; --";
         await insertarHallazgos(procesamientoId, [hallazgo({ valorOriginal: texto })], conexion);
         expect((await listarHallazgos(procesamientoId, { limite: 50, pagina: 1 }, conexion)).hallazgos[0]?.valorOriginal).toBe(texto);
+    });
+});
+
+describe('procesamiento.repository: registros procesados', () => {
+    it('guarda los registros con su JSON, ligados al procesamiento, y no admite repetir el identificador', async () => {
+        const id = await crearProcesamiento({ cargaId, archivoId, tipo: 'procesamiento', ejecutadoPor: usuarioId }, conexion);
+        const registros = Array.from({ length: 250 }, (_, i) => ({ identificador: String(i + 1), filaOrigen: i + 2, datos: { edad: i % 2 === 0 ? null : 29, pais: 'Ecuador' } }));
+        await insertarRegistros(id, cargaId, 'ots_turista_v1', registros, conexion); // 250 filas = 3 lotes
+
+        const [filas] = await conexion.query<RowDataPacket[]>('SELECT identificador, fila_origen, estructura, datos FROM registros_procesados WHERE procesamiento_id = ? ORDER BY id', [id]);
+        expect(filas).toHaveLength(250);
+        expect(filas[0]).toMatchObject({ identificador: '1', fila_origen: 2, estructura: 'ots_turista_v1' });
+        expect(typeof filas[0]?.['datos'] === 'string' ? JSON.parse(filas[0]['datos'] as string) : filas[0]?.['datos']).toEqual({ edad: null, pais: 'Ecuador' });
+
+        await expect(insertarRegistros(id, cargaId, 'ots_turista_v1', [registros[0]!], conexion)).rejects.toMatchObject({ code: 'ER_DUP_ENTRY' });
+    });
+
+    it('un hallazgo de tipo "cambio" se guarda y se puede filtrar', async () => {
+        const id = await crearProcesamiento({ cargaId, archivoId, tipo: 'procesamiento', ejecutadoPor: usuarioId }, conexion);
+        await insertarHallazgos(id, [hallazgo({ severidad: 'cambio', regla: 'cero_a_faltante', valorOriginal: '0', valorCorregido: null })], conexion);
+        const { hallazgos, total } = await listarHallazgos(id, { severidad: 'cambio', limite: 10, pagina: 1 }, conexion);
+        expect(total).toBe(1);
+        expect(hallazgos[0]).toMatchObject({ severidad: 'cambio', valorOriginal: '0', valorCorregido: null });
     });
 });
