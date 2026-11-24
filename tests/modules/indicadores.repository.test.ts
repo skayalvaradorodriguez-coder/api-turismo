@@ -4,7 +4,7 @@ import type { PoolConnection } from 'mysql2/promise';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { pool } from '../../src/config/db';
 import { crearCarga } from '../../src/modules/cargas/cargas.repository';
-import { registrosDelUltimoProcesamiento } from '../../src/modules/indicadores/indicadores.repository';
+import { estructuraDelUltimoProcesamiento, registrosDelUltimoProcesamiento } from '../../src/modules/indicadores/indicadores.repository';
 import { crearProcesamiento, finalizarProcesamiento, insertarRegistros } from '../../src/modules/procesamiento/procesamiento.repository';
 
 let conexion: PoolConnection;
@@ -76,5 +76,23 @@ describe('registrosDelUltimoProcesamiento', () => {
         expect(r?.procesamientoId).toBe(nuevo);
         expect(r?.estructura).toBe('ots_turista_v1');
         expect(r?.registros).toEqual([{ edad: 30 }, { edad: null, pais: 'Ecuador' }]); // ordenados por fila de origen
+    });
+});
+
+describe('estructuraDelUltimoProcesamiento', () => {
+    it('sin procesamiento terminado devuelve null', async () => {
+        expect(await estructuraDelUltimoProcesamiento(cargaId, conexion)).toBeNull();
+    });
+
+    it('devuelve la estructura del procesamiento terminado más reciente', async () => {
+        const viejo = await crearProcesamiento({ cargaId, archivoId, tipo: 'procesamiento', ejecutadoPor: usuarioId }, conexion);
+        await insertarRegistros(viejo, cargaId, 'ots_turista_v1', [registro(1, { edad: 30 })], conexion);
+        await finalizarProcesamiento(viejo, { estado: 'completado', totalFilas: 1, totalErrores: 0, totalAlertas: 0 }, conexion);
+
+        const nuevo = await crearProcesamiento({ cargaId, archivoId, tipo: 'procesamiento', ejecutadoPor: usuarioId }, conexion);
+        await insertarRegistros(nuevo, cargaId, 'ots_hotel_v1', [registro(1, { habitaciones: 5 })], conexion);
+        await finalizarProcesamiento(nuevo, { estado: 'completado', totalFilas: 1, totalErrores: 0, totalAlertas: 0 }, conexion);
+
+        expect(await estructuraDelUltimoProcesamiento(cargaId, conexion)).toBe('ots_hotel_v1');
     });
 });

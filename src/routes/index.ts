@@ -9,6 +9,7 @@ import { fuentesRouter } from '../modules/fuentes/fuentes.routes';
 import { cargasRouter } from '../modules/cargas/cargas.routes';
 import { procesamientoRouter } from '../modules/procesamiento/procesamiento.routes';
 import { indicadoresRouter } from '../modules/indicadores/indicadores.routes';
+import { publicoRouter } from '../modules/publico/publico.routes';
 import { usuariosRouter } from '../modules/usuarios/usuarios.routes';
 
 export const apiRouter = Router();
@@ -38,4 +39,5 @@ apiRouter.use('/cargas', cargasRouter);
 apiRouter.use('/cargas', procesamientoRouter);
 apiRouter.use('/cargas', indicadoresRouter);
 apiRouter.use('/usuarios', usuariosRouter);
-
+// Parte publica: no exige sesion y solo entrega cargas publicadas
+apiRouter.use('/publico', publicoRouter);

@@ -23,3 +23,4 @@ export const registroLimiter = limitador({ minutos: 60, limite: 10 });
 export const correoLimiter = limitador({ minutos: 15, limite: 5 });
 export const verificacionLimiter = limitador({ minutos: 15, limite: 30, soloFallidos: true });
 export const googleLimiter = limitador({ minutos: 15, limite: 30 });
+export const publicoLimiter = limitador({ minutos: 1, limite: 60 });

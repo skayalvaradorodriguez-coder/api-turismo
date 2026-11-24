@@ -38,3 +38,18 @@ export async function registrosDelUltimoProcesamiento(cargaId: number, ejecutor:
         registros: filas.map((f) => aObjeto(f['datos'])),
     };
 }
+
+/** Tipo de datos (estructura) de la carga segun su ultimo procesamiento terminado, sin leer todos los registros. */
+export async function estructuraDelUltimoProcesamiento(cargaId: number, ejecutor: Ejecutor = pool): Promise<string | null> {
+    const [filas] = await ejecutor.execute<RowDataPacket[]>(
+        `SELECT estructura FROM registros_procesados
+          WHERE procesamiento_id = (
+            SELECT id FROM procesamientos
+             WHERE carga_id = ? AND tipo = 'procesamiento' AND estado = 'completado'
+             ORDER BY id DESC LIMIT 1)
+          LIMIT 1`,
+        [cargaId],
+    );
+    const estructura = filas[0]?.['estructura'];
+    return typeof estructura === 'string' ? estructura : null;
+}
