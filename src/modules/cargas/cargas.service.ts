@@ -261,6 +261,55 @@ export async function rechazarCarga(cargaId: number, motivo: string, actor: Acto
     return obtenerCarga(cargaId);
 }
 
+export async function publicarCarga(cargaId: number, actor: Actor): Promise<DetalleCarga> {
+    await enTransaccion(async (conexion) => {
+        const carga = await repo.buscarCargaPorId(cargaId, conexion);
+        if (!carga) throw cargaNoEncontrada();
+
+        // Solo se publica lo que ya paso por validacion y procesamiento
+        const cambio = await repo.publicarCarga(cargaId, actor.id, conexion);
+        if (!cambio) {
+            throw new AppError('Solo se puede publicar una carga procesada', 409, 'CARGA_NO_PUBLICABLE');
+        }
+
+        await registrar(
+            {
+                usuarioId: actor.id,
+                accion: 'carga.publicar',
+                entidad: 'carga',
+                entidadId: cargaId,
+                detalle: { estadoAnterior: carga.estado },
+                ip: actor.ip ?? null,
+            },
+            conexion,
+        );
+    });
+    return obtenerCarga(cargaId);
+}
+
+export async function despublicarCarga(cargaId: number, actor: Actor): Promise<DetalleCarga> {
+    await enTransaccion(async (conexion) => {
+        const carga = await repo.buscarCargaPorId(cargaId, conexion);
+        if (!carga) throw cargaNoEncontrada();
+
+        const cambio = await repo.despublicarCarga(cargaId, conexion);
+        if (!cambio) throw new AppError('Esta carga no esta publicada', 409, 'CARGA_NO_PUBLICADA');
+
+        await registrar(
+            {
+                usuarioId: actor.id,
+                accion: 'carga.despublicar',
+                entidad: 'carga',
+                entidadId: cargaId,
+                detalle: { estadoAnterior: carga.estado },
+                ip: actor.ip ?? null,
+            },
+            conexion,
+        );
+    });
+    return obtenerCarga(cargaId);
+}
+
 export async function actualizarMetadatos(
     cargaId: number,
     datos: ActualizarMetadatosInput,

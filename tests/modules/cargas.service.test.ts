@@ -23,6 +23,8 @@ vi.mock('../../src/modules/cargas/cargas.repository', async (importarOriginal) =
         buscarCargaPorId: vi.fn(),
         listarCargas: vi.fn(),
         transicionarEstado: vi.fn(),
+        publicarCarga: vi.fn(),
+        despublicarCarga: vi.fn(),
         estructuraPerteneceAFuente: vi.fn(),
         insertarArchivo: vi.fn(),
         listarArchivos: vi.fn(),
@@ -283,6 +285,56 @@ describe('rechazarCarga', () => {
             statusCode: 409,
             code: 'CARGA_NO_EDITABLE',
         });
+        expect(registrar).not.toHaveBeenCalled();
+    });
+});
+
+describe('publicarCarga', () => {
+    it('publica una carga procesada y lo anota en la bitacora', async () => {
+        m(repo.buscarCargaPorId).mockResolvedValue(cargaBase({ estado: 'procesada' }));
+        m(repo.publicarCarga).mockResolvedValue(true);
+
+        await servicio.publicarCarga(10, actor);
+
+        expect(repo.publicarCarga).toHaveBeenCalledWith(10, actor.id, expect.anything());
+        expect(registrar).toHaveBeenCalledWith(
+            expect.objectContaining({ accion: 'carga.publicar', entidad: 'carga', entidadId: 10, usuarioId: actor.id, detalle: { estadoAnterior: 'procesada' } }),
+            expect.anything(),
+        );
+    });
+
+    it('404 si no existe y 409 si no esta procesada (sin anotar nada)', async () => {
+        m(repo.buscarCargaPorId).mockResolvedValueOnce(null);
+        await expect(servicio.publicarCarga(99, actor)).rejects.toMatchObject({ statusCode: 404 });
+
+        m(repo.buscarCargaPorId).mockResolvedValue(cargaBase({ estado: 'validada' }));
+        m(repo.publicarCarga).mockResolvedValue(false);
+        await expect(servicio.publicarCarga(10, actor)).rejects.toMatchObject({ statusCode: 409, code: 'CARGA_NO_PUBLICABLE' });
+        expect(registrar).not.toHaveBeenCalled();
+    });
+});
+
+describe('despublicarCarga', () => {
+    it('retira una carga publicada y lo anota en la bitacora', async () => {
+        m(repo.buscarCargaPorId).mockResolvedValue(cargaBase({ estado: 'publicada' }));
+        m(repo.despublicarCarga).mockResolvedValue(true);
+
+        await servicio.despublicarCarga(10, actor);
+
+        expect(repo.despublicarCarga).toHaveBeenCalledWith(10, expect.anything());
+        expect(registrar).toHaveBeenCalledWith(
+            expect.objectContaining({ accion: 'carga.despublicar', entidadId: 10, detalle: { estadoAnterior: 'publicada' } }),
+            expect.anything(),
+        );
+    });
+
+    it('404 si no existe y 409 si no estaba publicada', async () => {
+        m(repo.buscarCargaPorId).mockResolvedValueOnce(null);
+        await expect(servicio.despublicarCarga(99, actor)).rejects.toMatchObject({ statusCode: 404 });
+
+        m(repo.buscarCargaPorId).mockResolvedValue(cargaBase({ estado: 'procesada' }));
+        m(repo.despublicarCarga).mockResolvedValue(false);
+        await expect(servicio.despublicarCarga(10, actor)).rejects.toMatchObject({ statusCode: 409, code: 'CARGA_NO_PUBLICADA' });
         expect(registrar).not.toHaveBeenCalled();
     });
 });

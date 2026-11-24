@@ -181,3 +181,14 @@ cargasRouter.post('/:id/rechazo', requireRol(...ROLES_GESTION), validarBody(rech
     const { motivo } = req.body as RechazarCargaInput;
     res.json({ ok: true, data: await cargas.rechazarCarga(id, motivo, actorDe(req)) });
 });
+
+// Publicar deja la carga disponible para la parte publica; despublicar la retira. Ambas quedan en la bitacora.
+cargasRouter.post('/:id/publicacion', requireRol(...ROLES_GESTION), async (req, res) => {
+    const { id } = validarDatos(idCargaParamSchema, req.params);
+    res.json({ ok: true, data: await cargas.publicarCarga(id, actorDe(req)) });
+});
+
+cargasRouter.delete('/:id/publicacion', requireRol(...ROLES_GESTION), async (req, res) => {
+    const { id } = validarDatos(idCargaParamSchema, req.params);
+    res.json({ ok: true, data: await cargas.despublicarCarga(id, actorDe(req)) });
+});

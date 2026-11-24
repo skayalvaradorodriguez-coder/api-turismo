@@ -54,6 +54,8 @@ vi.mock('../../src/modules/cargas/cargas.service', () => ({
     agregarArchivo: vi.fn(),
     actualizarMetadatos: vi.fn(),
     rechazarCarga: vi.fn(),
+    publicarCarga: vi.fn(),
+    despublicarCarga: vi.fn(),
     prepararDescarga: vi.fn(),
 }));
 
@@ -113,6 +115,8 @@ const rutas = [
     { metodo: 'post', url: `${BASE}/10/archivos` },
     { metodo: 'patch', url: `${BASE}/10/metadatos` },
     { metodo: 'post', url: `${BASE}/10/rechazo` },
+    { metodo: 'post', url: `${BASE}/10/publicacion` },
+    { metodo: 'delete', url: `${BASE}/10/publicacion` },
 ] as const;
 const soloLectura = rutas.slice(0, 3);
 const gestion = rutas.slice(3);
@@ -307,6 +311,35 @@ describe('cargas (HTTP): agregar archivo, metadatos y rechazo', () => {
 
         const corto = await como(request(app).post(`${BASE}/10/rechazo`), ADMIN).send({ motivo: 'no' });
         expect(corto.status).toBe(422);
+    });
+});
+
+describe('cargas (HTTP): publicacion', () => {
+    it('publica y despublica con el id de la carga y la persona de la sesion', async () => {
+        m(servicio.publicarCarga).mockResolvedValue(detalle);
+        m(servicio.despublicarCarga).mockResolvedValue(detalle);
+
+        const publicada = await como(request(app).post(`${BASE}/10/publicacion`), ADMIN);
+        expect(publicada.status).toBe(200);
+        expect(m(servicio.publicarCarga).mock.calls[0]?.[0]).toBe(10);
+        expect(m(servicio.publicarCarga).mock.calls[0]?.[1]).toMatchObject({ id: ADMIN });
+
+        const retirada = await como(request(app).delete(`${BASE}/10/publicacion`), SUPER_ADMIN);
+        expect(retirada.status).toBe(200);
+        expect(m(servicio.despublicarCarga).mock.calls[0]?.[0]).toBe(10);
+    });
+
+    it('un id invalido responde 422 y no llega al servicio', async () => {
+        const res = await como(request(app).post(`${BASE}/abc/publicacion`), ADMIN);
+        expect(res.status).toBe(422);
+        expect(servicio.publicarCarga).not.toHaveBeenCalled();
+    });
+
+    it('el error del servicio llega con su codigo (409 si no se puede publicar)', async () => {
+        m(servicio.publicarCarga).mockRejectedValue(new AppError('Solo se puede publicar una carga procesada', 409, 'CARGA_NO_PUBLICABLE'));
+        const res = await como(request(app).post(`${BASE}/10/publicacion`), ADMIN);
+        expect(res.status).toBe(409);
+        expect(res.body).toMatchObject({ ok: false, code: 'CARGA_NO_PUBLICABLE' });
     });
 });
 

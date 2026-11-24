@@ -13,7 +13,9 @@ import {
     insertarArchivo,
     listarArchivos,
     listarCargas,
+    despublicarCarga,
     listarMetadatos,
+    publicarCarga,
     transicionarEstado,
 } from '../../src/modules/cargas/cargas.repository';
 
@@ -99,6 +101,31 @@ describe('cargas.repository (con la base real; todo se deshace)', () => {
         const rechazadas = await listarCargas({ fuenteId, estado: 'rechazada', limite: 50, pagina: 1 }, conexion);
         expect(rechazadas.total).toBe(1);
         expect(rechazadas.cargas[0]?.id).toBe(ids[0]);
+    });
+
+    it('publicar solo funciona sobre una carga procesada y guarda quien y cuando; despublicar lo limpia', async () => {
+        const id = await crearCarga({ fuenteId, cargadoPor: usuarioId }, conexion);
+
+        // recibida: no se puede publicar
+        expect(await publicarCarga(id, usuarioId, conexion)).toBe(false);
+
+        await transicionarEstado(id, ['recibida'], 'validada', null, conexion);
+        await transicionarEstado(id, ['validada'], 'procesada', null, conexion, 2);
+
+        expect(await publicarCarga(id, usuarioId, conexion)).toBe(true);
+        expect(await publicarCarga(id, usuarioId, conexion)).toBe(false); // ya estaba publicada
+        const publicada = await buscarCargaPorId(id, conexion);
+        expect(publicada?.estado).toBe('publicada');
+        expect(publicada?.publicadaPor).toBe(usuarioId);
+        expect(publicada?.publicadaEn).toBeInstanceOf(Date);
+
+        expect(await despublicarCarga(id, conexion)).toBe(true);
+        expect(await despublicarCarga(id, conexion)).toBe(false); // ya no estaba publicada
+        const retirada = await buscarCargaPorId(id, conexion);
+        expect(retirada?.estado).toBe('procesada');
+        expect(retirada?.publicadaPor).toBeNull();
+        expect(retirada?.publicadaEn).toBeNull();
+        expect(retirada?.nivelIngreso).toBe(2); // el nivel no cambia al publicar ni al retirar
     });
 
     it('transicionarEstado cambia el estado solo una vez (comprobar y cambiar juntos)', async () => {

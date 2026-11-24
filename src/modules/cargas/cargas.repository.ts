@@ -238,6 +238,27 @@ export async function transicionarEstado(
     return resultado.affectedRows === 1;
 }
 
+/**
+ * Publica una carga procesada. Comprueba y cambia en una sola sentencia, igual que transicionarEstado:
+ * si dos personas actuan a la vez, solo una gana. Devuelve true si hubo cambio.
+ */
+export async function publicarCarga(id: number, usuarioId: number, ejecutor: Ejecutor = pool): Promise<boolean> {
+    const [resultado] = await ejecutor.execute<ResultSetHeader>(
+        "UPDATE cargas SET estado = 'publicada', publicada_por = ?, publicada_at = NOW() WHERE id = ? AND estado = 'procesada'",
+        [usuarioId, id],
+    );
+    return resultado.affectedRows === 1;
+}
+
+/** Retira una carga publicada: vuelve a 'procesada' y limpia quien y cuando la publico (la bitacora lo conserva). */
+export async function despublicarCarga(id: number, ejecutor: Ejecutor = pool): Promise<boolean> {
+    const [resultado] = await ejecutor.execute<ResultSetHeader>(
+        "UPDATE cargas SET estado = 'procesada', publicada_por = NULL, publicada_at = NULL WHERE id = ? AND estado = 'publicada'",
+        [id],
+    );
+    return resultado.affectedRows === 1;
+}
+
 /** true si la estructura existe y pertenece a esa fuente. */
 export async function estructuraPerteneceAFuente(
     estructuraId: number,
