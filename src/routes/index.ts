@@ -8,6 +8,7 @@ import { googleRouter } from '../modules/auth/google.routes';
 import { fuentesRouter } from '../modules/fuentes/fuentes.routes';
 import { cargasRouter } from '../modules/cargas/cargas.routes';
 import { procesamientoRouter } from '../modules/procesamiento/procesamiento.routes';
+import { indicadoresRouter } from '../modules/indicadores/indicadores.routes';
 import { usuariosRouter } from '../modules/usuarios/usuarios.routes';
 
 export const apiRouter = Router();
@@ -35,5 +36,6 @@ apiRouter.use('/auth', googleRouter);
 apiRouter.use('/fuentes', fuentesRouter);
 apiRouter.use('/cargas', cargasRouter);
 apiRouter.use('/cargas', procesamientoRouter);
+apiRouter.use('/cargas', indicadoresRouter);
 apiRouter.use('/usuarios', usuariosRouter);
 
