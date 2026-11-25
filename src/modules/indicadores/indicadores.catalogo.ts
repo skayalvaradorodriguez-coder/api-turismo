@@ -5,7 +5,7 @@
 
 export type RegistroDatos = Record<string, unknown>;
 
-export type EstructuraIndicador = 'ots_turista_v1' | 'ots_hotel_v1';
+export type EstructuraIndicador = 'ots_turista_v1' | 'ots_hotel_v1' | 'kobo_carnaval_v1';
 
 export interface ItemDistribucion {
     categoria: string;
@@ -18,6 +18,8 @@ export interface ResultadoIndicador {
     valor: number | null; // null si no hay datos suficientes
     unidad: string;
     distribucion?: ItemDistribucion[];
+    // true si cada encuestado pudo elegir varias opciones: los porcentajes no suman 100 y no se dibujan como reparto
+    respuestaMultiple?: boolean;
     registrosUsados: number;
     registrosExcluidos: number; // sin dato o con dato incoherente: no entran al calculo
 }
@@ -87,7 +89,7 @@ function distribucion(columna: string): Indicador['calcular'] {
 const T = 'ots_turista_v1' as const;
 const H = 'ots_hotel_v1' as const;
 
-export const CATALOGO: Indicador[] = [
+const CATALOGO_OTS: Indicador[] = [
     { id: 'T1', nombre: 'Encuestas procesadas', descripcion: 'Cantidad de encuestas a turistas que pasaron el procesamiento.', estructura: T, calcular: conteo() },
     { id: 'T2', nombre: 'Distribución por género', descripcion: 'Porcentaje de encuestados por cada categoría de género de la fuente.', estructura: T, calcular: distribucion('genero') },
     { id: 'T3', nombre: 'Edad promedio', descripcion: 'Promedio de la edad de los encuestados. Se excluyen los que no respondieron.', estructura: T, calcular: promedio('edad', 'años', 1) },
@@ -162,6 +164,106 @@ export const CATALOGO: Indicador[] = [
     // (hay tarifas de 1890 con 16 habitaciones ocupadas) y 85 de 277 registros traen 0.
     // Se agrega cuando el Observatorio confirme que significa ese campo.
 ];
+
+// --- Carnaval 2026 (estructura kobo_carnaval_v1) ---------------------------------------------
+// Un indicador por cada variable de la encuesta que se puede resumir; las definiciones salen del
+// diccionario que entrega el Observatorio. No se convierte ningun rango de gasto a numero: se
+// muestra el reparto por rango tal como se respondio. Las columnas que son identificadores,
+// fechas, GPS, textos libres o copias 0/1 de otra columna (sexo_*, edu_*) se conservan en los
+// registros pero no generan indicador propio.
+
+const K = 'kobo_carnaval_v1' as const;
+
+const marcado = (v: unknown): boolean => v === 1 || v === '1';
+const esMarca = (v: unknown): boolean => v === 0 || v === 1 || v === '0' || v === '1';
+
+/** Pregunta de seleccion multiple guardada como columnas 0/1: % de encuestados que marcaron cada opcion. */
+function seleccionMultiple(opciones: Array<[etiqueta: string, columna: string]>): Indicador['calcular'] {
+    return (registros) => {
+        const validos = registros.filter((r) => opciones.some(([, c]) => esMarca(r[c])));
+        const items: ItemDistribucion[] = opciones
+            .map(([categoria, columna]) => {
+                const n = validos.filter((r) => marcado(r[columna])).length;
+                return { categoria, n, porcentaje: validos.length ? redondear((n / validos.length) * 100, 1) : 0 };
+            })
+            .sort((a, b) => b.n - a.n || a.categoria.localeCompare(b.categoria, 'es'));
+        return { valor: null, unidad: '%', distribucion: items, respuestaMultiple: true, registrosUsados: validos.length, registrosExcluidos: registros.length - validos.length };
+    };
+}
+
+const AVISO_MULTIPLE = ' Cada encuestado pudo marcar varias opciones, por eso los porcentajes no suman 100.';
+const AVISO_GASTO = 'Es un rango en dólares declarado por persona y día. No se convierte a un número: el Observatorio aún no define cómo hacerlo.';
+
+type EspecificacionCarnaval = [nombre: string, descripcion: string, calcular: Indicador['calcular'], advertencia?: string];
+
+const ESPECIFICACIONES_CARNAVAL: EspecificacionCarnaval[] = [
+    ['Encuestas procesadas', 'Cantidad de encuestas del feriado que pasaron el procesamiento.', conteo()],
+    // Perfil
+    ['Distribución por género', 'Porcentaje de encuestados por género.', distribucion('sexo')],
+    ['Distribución por edad', 'Porcentaje de encuestados por rango de edad.', distribucion('edad')],
+    ['Procedencia', 'Porcentaje de encuestados por país de origen.', distribucion('pais_origen')],
+    ['Nivel educativo', 'Porcentaje de encuestados por nivel educativo.', distribucion('educacion')],
+    ['Ocupación', 'Porcentaje de encuestados por ocupación.', distribucion('ocupacion')],
+    // Viaje
+    ['Tamaño del grupo de viaje', 'Porcentaje de encuestados según el número de personas del grupo.', distribucion('tamanio_grupo')],
+    ['Motivo del viaje', 'Porcentaje de encuestados por motivo principal del viaje.', distribucion('motivo_viaje')],
+    ['Frecuencia de visita', 'Porcentaje de encuestados según con qué frecuencia visitan el destino.', distribucion('frecuencia_visita')],
+    ['Compañía de viaje', 'Porcentaje de encuestados según con quién viajan.', distribucion('companero_viaje')],
+    ['Atracciones de interés', 'Porcentaje de encuestados interesados en cada tipo de atracción.' + AVISO_MULTIPLE, seleccionMultiple([
+        ['Ciudad', 'atr_ciudad'], ['Cultura y patrimonio', 'atr_cultura'], ['Naturaleza y aventura', 'atr_naturaleza'],
+        ['Turismo rural', 'atr_rural'], ['Sol y playa', 'atr_sol_playa'], ['Gastronomía', 'atr_gastronomia'],
+        ['Entretenimiento y vida nocturna', 'atr_entretenimiento'], ['Ferias y convenciones', 'atr_ferias'], ['Turismo deportivo', 'atr_deportivo'],
+    ])],
+    ['Destino específico visitado', 'Porcentaje de encuestados por destino o lugar que declararon visitar (texto libre de la encuesta).', distribucion('destino_especifico')],
+    ['Noches de estadía', 'Porcentaje de encuestados según el número de noches de estadía.', distribucion('noches_estadia')],
+    // Planificación
+    ['Fuentes de información', 'Porcentaje de encuestados que usó cada fuente para informarse del destino.' + AVISO_MULTIPLE, seleccionMultiple([
+        ['Buscadores de internet', 'info_internet'], ['Agencias en línea', 'info_agencias_online'], ['Agentes de viaje', 'info_agentes_viaje'],
+        ['Recomendaciones personales', 'info_recomendaciones'], ['Opiniones en línea', 'info_opiniones_online'],
+        ['Sitio web del destino', 'info_sitio_web_destino'], ['Redes sociales', 'info_redes_sociales'], ['Otro medio', 'info_otro_medio'],
+    ])],
+    ['Facilidad para encontrar información', 'Porcentaje de encuestados según lo fácil que fue encontrar información del destino.', distribucion('facilidad_info')],
+    ['Método de planificación', 'Porcentaje de encuestados según cómo planificaron el viaje.', distribucion('metodo_planificacion')],
+    ['Anticipación de la reserva', 'Porcentaje de encuestados según con cuánta anticipación reservaron o planificaron.', distribucion('anticipacion_reserva')],
+    // Transporte
+    ['Transporte de llegada', 'Porcentaje de encuestados por medio de transporte con el que llegaron al destino.', distribucion('transporte_llegada')],
+    ['Transporte local', 'Porcentaje de encuestados que usó cada medio de transporte dentro del destino.' + AVISO_MULTIPLE, seleccionMultiple([
+        ['Transporte público (bus)', 'trans_bus'], ['Taxi amarillo', 'trans_taxi'], ['Vehículo motorizado alquilado', 'trans_moto_alquilado'],
+        ['Vehículo de familiar o amigo', 'trans_moto_familiar'], ['Uber u otras aplicaciones', 'trans_uber'], ['Bicicleta', 'trans_bicicleta'],
+    ])],
+    // Gasto (rangos)
+    ['Presupuesto total por persona y día', 'Porcentaje de encuestados por rango de presupuesto total.', distribucion('presupuesto_total_dia'), AVISO_GASTO],
+    ['Gasto en alojamiento', 'Porcentaje de encuestados por rango de gasto en alojamiento.', distribucion('gasto_alojamiento'), AVISO_GASTO],
+    ['Gasto en alimentación', 'Porcentaje de encuestados por rango de gasto en alimentación.', distribucion('gasto_alimentacion'), AVISO_GASTO],
+    ['Gasto en actividades', 'Porcentaje de encuestados por rango de gasto en actividades.', distribucion('gasto_actividades'), AVISO_GASTO],
+    ['Gasto en compras', 'Porcentaje de encuestados por rango de gasto en compras.', distribucion('gasto_compras'), AVISO_GASTO],
+    ['Gasto en otros conceptos', 'Porcentaje de encuestados por rango de gasto en otros conceptos.', distribucion('gasto_otros'), AVISO_GASTO],
+    ['Categoría de gasto prioritaria', 'Porcentaje de encuestados según la categoría en la que darían prioridad a gastar.', distribucion('categoria_gasto_prioritario')],
+    ['Perfil de viajero', 'Porcentaje de encuestados por perfil de viajero según su patrón de gasto.', distribucion('perfil_viajero')],
+    // Experiencia
+    ['Expectativas cumplidas', 'Porcentaje de encuestados según en qué medida el destino cumplió sus expectativas.', distribucion('expectativas_cumplidas')],
+    ['Calificación de la información turística', 'Promedio de la calificación de 1 a 5 de la información turística disponible.', promedio('cal_info_turistica', 'de 5')],
+    ['Calificación de la atención local', 'Promedio de la calificación de 1 a 5 de la atención y amabilidad de la población.', promedio('cal_atencion_local', 'de 5')],
+    ['Calificación de la seguridad', 'Promedio de la calificación de 1 a 5 de la seguridad percibida.', promedio('cal_seguridad', 'de 5')],
+    ['Calificación de la limpieza', 'Promedio de la calificación de 1 a 5 de la limpieza y mantenimiento del entorno.', promedio('cal_limpieza', 'de 5')],
+    ['Calificación de la relación calidad-precio', 'Promedio de la calificación de 1 a 5 de la relación calidad-precio de los servicios.', promedio('cal_relacion_precio', 'de 5')],
+    ['Satisfacción con los atractivos', 'Promedio de la satisfacción general de 1 a 5 con los atractivos turísticos.', promedio('satisfaccion_atractivos', 'de 5')],
+    ['Probabilidad de recomendar', 'Promedio de la probabilidad de recomendar el destino, en escala de 1 a 5, tal como la define el diccionario del Observatorio.', promedio('nps_recomendar', 'de 5')],
+    ['Probabilidad de volver', 'Promedio de la probabilidad de volver al destino, en escala de 1 a 5, tal como la define el diccionario del Observatorio.', promedio('nps_volver', 'de 5')],
+    ['Razón de satisfacción o insatisfacción', 'Porcentaje de encuestados por la razón principal que dieron.', distribucion('razon_satisfaccion'),
+        'Las opciones registradas describen sobre todo motivos de insatisfacción; se muestran tal como las respondieron.'],
+];
+
+const CATALOGO_CARNAVAL: Indicador[] = ESPECIFICACIONES_CARNAVAL.map(([nombre, descripcion, calcular, advertencia], i) => ({
+    id: `C${i + 1}`,
+    nombre,
+    descripcion,
+    estructura: K,
+    ...(advertencia ? { advertencia } : {}),
+    calcular,
+}));
+
+export const CATALOGO: Indicador[] = [...CATALOGO_OTS, ...CATALOGO_CARNAVAL];
 
 export function indicadoresDe(estructura: string): Indicador[] {
     return CATALOGO.filter((i) => i.estructura === estructura);

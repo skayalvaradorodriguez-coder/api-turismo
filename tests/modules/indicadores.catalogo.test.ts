@@ -130,3 +130,64 @@ describe('indicadores de hoteles', () => {
         expect(r.registrosExcluidos).toBe(1);
     });
 });
+
+describe('indicadores de Carnaval (kobo_carnaval_v1)', () => {
+    const K = 'kobo_carnaval_v1';
+    const registros: RegistroDatos[] = [
+        { sexo: 'Mujer', cal_seguridad: 5, nps_volver: 4, atr_sol_playa: '1', atr_ciudad: '0', gasto_alojamiento: 'De $21 a $50' },
+        { sexo: 'Hombre', cal_seguridad: 3, nps_volver: null, atr_sol_playa: '1', atr_ciudad: '1', gasto_alojamiento: 'Menos de $20' },
+        { sexo: null, cal_seguridad: null, nps_volver: 5, atr_sol_playa: '0', atr_ciudad: '0', gasto_alojamiento: 'De $21 a $50' },
+        { sexo: 'Mujer', cal_seguridad: 4, nps_volver: 5, atr_sol_playa: '0', atr_ciudad: '0', gasto_alojamiento: 'Más de $100' },
+    ];
+
+    it('tiene ids propios y solo se calcula para su estructura', () => {
+        const ids = calcularIndicadores(K, []).map((i) => i.id);
+        expect(ids[0]).toBe('C1');
+        expect(ids.every((id) => id.startsWith('C'))).toBe(true);
+        expect(calcularIndicadores('ots_turista_v1', []).some((i) => i.id.startsWith('C'))).toBe(false);
+    });
+
+    it('cuenta encuestas y reparte por categoria sin contar los vacios', () => {
+        expect(calc(K, registros, 'C1').valor).toBe(4);
+        const genero = calc(K, registros, 'C2');
+        expect(genero.registrosUsados).toBe(3);
+        expect(genero.registrosExcluidos).toBe(1);
+        expect(genero.distribucion).toEqual([
+            { categoria: 'Mujer', n: 2, porcentaje: 66.7 },
+            { categoria: 'Hombre', n: 1, porcentaje: 33.3 },
+        ]);
+    });
+
+    it('el promedio de una calificacion excluye las sin respuesta', () => {
+        const seguridad = calcularIndicadores(K, registros).find((i) => i.nombre === 'Calificación de la seguridad');
+        expect(seguridad?.valor).toBe(4);
+        expect(seguridad?.registrosUsados).toBe(3);
+        expect(seguridad?.registrosExcluidos).toBe(1);
+    });
+
+    it('la seleccion multiple da el porcentaje de encuestados que marco cada opcion', () => {
+        const atracciones = calcularIndicadores(K, registros).find((i) => i.nombre === 'Atracciones de interés');
+        const solPlaya = atracciones?.distribucion?.find((d) => d.categoria === 'Sol y playa');
+        const ciudad = atracciones?.distribucion?.find((d) => d.categoria === 'Ciudad');
+        expect(solPlaya).toEqual({ categoria: 'Sol y playa', n: 2, porcentaje: 50 });
+        expect(ciudad).toEqual({ categoria: 'Ciudad', n: 1, porcentaje: 25 });
+        expect(atracciones?.respuestaMultiple).toBe(true);
+        expect(atracciones?.registrosUsados).toBe(4);
+        expect(atracciones?.descripcion).toContain('no suman 100');
+    });
+
+    it('el gasto se muestra por rango, sin convertirlo a numero, y con su aclaracion', () => {
+        const gasto = calcularIndicadores(K, registros).find((i) => i.nombre === 'Gasto en alojamiento');
+        expect(gasto?.valor).toBeNull();
+        expect(gasto?.respuestaMultiple).toBeUndefined();
+        expect(gasto?.distribucion?.[0]).toEqual({ categoria: 'De $21 a $50', n: 2, porcentaje: 50 });
+        expect(gasto?.advertencia).toBeDefined();
+    });
+
+    it('con cero registros no inventa valores', () => {
+        for (const i of calcularIndicadores(K, []).filter((x) => x.id !== 'C1')) {
+            expect(i.valor === null || i.valor === 0).toBe(true);
+            expect(i.registrosUsados).toBe(0);
+        }
+    });
+});
