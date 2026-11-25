@@ -5,7 +5,7 @@
 
 export type RegistroDatos = Record<string, unknown>;
 
-export type EstructuraIndicador = 'ots_turista_v1' | 'ots_hotel_v1' | 'kobo_carnaval_v1';
+export type EstructuraIndicador = 'ots_turista_v1' | 'ots_hotel_v1' | 'kobo_carnaval_v1' | 'kobo_semana_santa_v1';
 
 export interface ItemDistribucion {
     categoria: string;
@@ -263,13 +263,122 @@ const CATALOGO_CARNAVAL: Indicador[] = ESPECIFICACIONES_CARNAVAL.map(([nombre, d
     calcular,
 }));
 
-export const CATALOGO: Indicador[] = [...CATALOGO_OTS, ...CATALOGO_CARNAVAL];
+// --- Semana Santa 2026 (estructura kobo_semana_santa_v1) --------------------------------------
+// Version depurada por el Observatorio. Sus encabezados de pregunta son genericos ("Pregunta.4"):
+// cada columna se identifico por su posicion en el cuestionario y por sus respuestas, y se
+// verifico contra el reporte del Observatorio (la probabilidad de recomendar coincide exacto).
+// Las preguntas de varias respuestas vienen como un texto con las opciones pegadas: se cuenta
+// cuantos encuestados mencionan cada opcion.
+
+const S = 'kobo_semana_santa_v1' as const;
+const SA = 'SECCIÓN A. PERFIL SOCIODEMOGRÁFICO/';
+const SB = 'SECCIÓN B. PLANEACIÓN DEL VIAJE/';
+const SC = 'SECCIÓN C. ESTRUCTURA DE CONSUMO/';
+
+/** Quita saltos de linea y espacios repetidos de un encabezado (algunos traen saltos de linea en medio). */
+const claveNormal = (k: string): string => k.replace(/\s+/g, ' ').trim();
+
+const sinRespuesta = (v: string): boolean => v.toLowerCase() === 'prefiero no responder';
+
+/** Pregunta de varias respuestas guardada como texto: % de encuestados cuyo texto menciona cada opcion. */
+function seleccionMultipleTexto(columna: string, opciones: Array<[etiqueta: string, ...fragmentos: string[]]>): Indicador['calcular'] {
+    return (registros) => {
+        const textos = registros.map((r) => texto(r[columna])).filter((v): v is string => v !== null && !sinRespuesta(v));
+        const items: ItemDistribucion[] = opciones
+            .map(([categoria, ...fragmentos]) => {
+                const n = textos.filter((t) => fragmentos.some((f) => t.toLowerCase().includes(f.toLowerCase()))).length;
+                return { categoria, n, porcentaje: textos.length ? redondear((n / textos.length) * 100, 1) : 0 };
+            })
+            .sort((a, b) => b.n - a.n || a.categoria.localeCompare(b.categoria, 'es'));
+        return { valor: null, unidad: '%', distribucion: items, respuestaMultiple: true, registrosUsados: textos.length, registrosExcluidos: registros.length - textos.length };
+    };
+}
+
+const AVISO_PREGUNTA_SIN_NOMBRE = 'El encabezado de esta pregunta en el archivo es genérico; se identificó por su posición y sus respuestas.';
+
+const ESPECIFICACIONES_SEMANA_SANTA: EspecificacionCarnaval[] = [
+    ['Encuestas procesadas', 'Cantidad de encuestas del feriado que pasaron el procesamiento.', conteo()],
+    ['Distribución por género', 'Porcentaje de encuestados por género.', distribucion(`${SA}2. ¿Con qué género se identifica usted?`)],
+    ['Distribución por edad', 'Porcentaje de encuestados por rango de edad.', distribucion(`${SA}Pregunta`)],
+    ['Procedencia', 'Porcentaje de encuestados por país de residencia.', distribucion(`${SA}Pregunta.1`)],
+    ['Nivel educativo', 'Porcentaje de encuestados por nivel educativo.', distribucion(`${SA}Pregunta.2`)],
+    ['Ocupación', 'Porcentaje de encuestados por ocupación.', distribucion(`${SA}Pregunta.3`)],
+    ['Tamaño del grupo de viaje', 'Porcentaje de encuestados según el número de personas del grupo.', distribucion(`${SA}Pregunta.4`)],
+    ['Motivo del viaje', 'Porcentaje de encuestados por motivo principal del viaje.', distribucion(`${SA}Pregunta.5`)],
+    ['Frecuencia de visita', 'Porcentaje de encuestados según con qué frecuencia visitan el destino.', distribucion(`${SB}Pregunta`)],
+    ['Compañía de viaje', 'Porcentaje de encuestados según con quién viajan.', distribucion(`${SB}Pregunta.1`)],
+    ['Atracciones de interés', 'Porcentaje de encuestados interesados en cada tipo de atracción.' + AVISO_MULTIPLE, seleccionMultipleTexto(`${SB}Pregunta.2`, [
+        ['Sol y playa', 'Sol y playa'], ['Gastronomía', 'Gastronomía'], ['Ciudad', 'Ciudad ('], ['Naturaleza y aventura', 'Naturaleza y Aventura'],
+        ['Cultura y patrimonio', 'Cultura y Patrimonio'], ['Entretenimiento y vida nocturna', 'Entretenimiento y vida nocturna'],
+        ['Turismo rural', 'Turismo rural'], ['Ferias y convenciones', 'ferias y convenciones'], ['Turismo deportivo', 'Turismo deportivo'],
+    ])],
+    ['Destinos de alta afluencia visitados', 'Porcentaje de quienes visitaron al menos un destino de este grupo (cuartil 1) y mencionaron cada uno.' + AVISO_MULTIPLE, seleccionMultipleTexto('Q1_Destinos_Alta_Afluencia', [
+        ['La Chocolatera', 'La Chocolatera'], ['La Lobería', 'La Lobería'], ['Cerro El Morro', 'Cerro El Morro'], ['Chipipe', 'Chipipe'], ['San Lorenzo', 'San Lorenzo'], ['Playa Ballenita', 'Ballenita'],
+    ])],
+    ['Destinos de afluencia moderada visitados', 'Porcentaje de quienes visitaron al menos un destino de este grupo (cuartil 2) y mencionaron cada uno.' + AVISO_MULTIPLE, seleccionMultipleTexto('Q2_Destinos_Afluencia_Moderada', [
+        ['Dos Mangas', 'Dos Mangas'], ['Playa Chulluipe', 'Chulluipe'], ['Puerto Lucía', 'Puerto Lu'], ['Playa Cautivo', 'Cautivo'], ['Playa La Libertad', 'Playa La Liber'], ['Aguas Termales', 'Aguas Termales'],
+    ])],
+    ['Destinos de baja afluencia visitados', 'Porcentaje de quienes visitaron al menos un destino de este grupo (cuartil 3) y mencionaron cada uno.' + AVISO_MULTIPLE, seleccionMultipleTexto('Q3_Destinos_Baja_Afluencia', [
+        ['Palmar', 'Palmar'], ['Loma Alta', 'Loma Alta'], ['Simón Bolívar', 'Simón Bolívar'], ['Cadeate', 'Cadeate'],
+    ])],
+    ['Destinos de visitación marginal visitados', 'Porcentaje de quienes visitaron al menos un destino de este grupo (cuartil 4) y mencionaron cada uno.' + AVISO_MULTIPLE, seleccionMultipleTexto('Q4_Destinos_Visitacion_Marginal', [
+        ['Curia', 'Curia'], ['San José', 'San José'], ['Las Núñez', 'Las Nu'], ['La Entrada', 'La Entrada'], ['La Rinconada', 'La Rinconada'],
+    ])],
+    ['Noches de estadía', 'Porcentaje de encuestados según el número de noches de estadía.', distribucion(`${SB}Pregunta.3`)],
+    ['Fuentes de información', 'Porcentaje de encuestados por la fuente principal con la que se informaron del destino.', distribucion(`${SB}Pregunta.4`)],
+    ['Facilidad para encontrar información', 'Porcentaje de encuestados según lo fácil que fue encontrar información del destino.', distribucion(`${SB}Pregunta.5`)],
+    ['Método de planificación', 'Porcentaje de encuestados según cómo planificaron el viaje.', distribucion(`${SB}Pregunta.6`)],
+    ['Anticipación de la reserva', 'Porcentaje de encuestados según con cuánta anticipación reservaron o planificaron.', distribucion(`${SB}Pregunta.7`)],
+    ['Transporte de llegada', 'Porcentaje de encuestados por medio de transporte con el que llegaron al destino.', distribucion(`${SB}Pregunta.8`)],
+    ['Transporte local', 'Porcentaje de encuestados que usó cada medio de transporte dentro del destino.' + AVISO_MULTIPLE, seleccionMultipleTexto(`${SC}Pregunta`, [
+        ['Vehículo propio', 'Vehículo propio'], ['Taxi amarillo', 'Taxi amarillo'], ['Transporte público (bus)', 'Transporte público (bus)'],
+        ['Uber u otras aplicaciones', 'Uber u otras', 'Servicio de transporte por app'], ['Vehículo motorizado alquilado', 'Vehículo motorizado alquilado'],
+        ['Autobús interprovincial', 'Autobús interprovincial'], ['Bicicleta', 'Bicicleta'], ['Vehículo de familiar o amigo', 'Vehículo de un familiar', 'Vehículo motorizado familiar'],
+    ])],
+    ['Presupuesto total por persona y día', 'Porcentaje de encuestados por rango de presupuesto total.', distribucion(`${SC}19. En promedio, ¿cuál es su presupuesto total por persona para el gasto asociado con su viaje por día?`), AVISO_GASTO],
+    ['Gasto en alojamiento', 'Porcentaje de encuestados por rango de gasto en alojamiento.', distribucion(`${SC}Gasto_Alojamiento`), AVISO_GASTO],
+    ['Gasto en alimentación', 'Porcentaje de encuestados por rango de gasto en alimentación.', distribucion(`${SC}Gasto_Alimentacion`), AVISO_GASTO],
+    ['Gasto en transporte', 'Porcentaje de encuestados por rango de gasto en transporte.', distribucion(`${SC}Gasto_Transporte`), AVISO_GASTO],
+    ['Gasto en actividades', 'Porcentaje de encuestados por rango de gasto en actividades.', distribucion(`${SC}Gasto_Actividades`), AVISO_GASTO],
+    ['Gasto en compras y recuerdos', 'Porcentaje de encuestados por rango de gasto en compras y souvenirs.', distribucion(`${SC}Gasto_Compras_Souvenirs`), AVISO_GASTO],
+    ['Categoría de gasto prioritaria', 'Porcentaje de encuestados según la categoría en la que darían prioridad a gastar.', distribucion(`${SC}Pregunta.1`)],
+    ['Perfil de viajero', 'Porcentaje de encuestados por perfil de viajero según su patrón de gasto.', distribucion(`${SC}Pregunta.2`)],
+    ['Expectativas cumplidas', 'Porcentaje de encuestados según en qué medida el destino cumplió sus expectativas.', distribucion(`${SC}Pregunta.3`)],
+    ['Calificación de la información turística', 'Promedio de la calificación de 1 a 5 de la información turística disponible.', promedio(`${SC}Pregunta_019/Información turística disponible (oficinas, mapas, señalización, apps)`, 'de 5')],
+    ['Calificación de la atención local', 'Promedio de la calificación de 1 a 5 de la atención y amabilidad de la población.', promedio(`${SC}Pregunta_019/Atención y amabilidad de la población local`, 'de 5')],
+    ['Calificación de la seguridad', 'Promedio de la calificación de 1 a 5 de la seguridad percibida.', promedio(`${SC}Pregunta_019/Seguridad percibida durante su estancia`, 'de 5')],
+    ['Calificación de la limpieza', 'Promedio de la calificación de 1 a 5 de la limpieza y mantenimiento del entorno.', promedio(`${SC}Pregunta_019/Limpieza y mantenimiento del entorno`, 'de 5')],
+    ['Calificación de la relación calidad-precio', 'Promedio de la calificación de 1 a 5 de la relación calidad-precio de los servicios.', promedio(`${SC}Pregunta_019/Relación calidad-precio de los servicios recibidos`, 'de 5')],
+    ['Satisfacción con los atractivos', 'Promedio de la satisfacción general de 1 a 5 con los atractivos turísticos.', promedio(`${SC}Pregunta_020/¿Cuál es su nivel de satisfaccion con respecto a su experiencia en los atractivos turisticos de Santa Elena que ha visitado?`, 'de 5')],
+    ['Probabilidad de volver', 'Porcentaje de encuestados por su probabilidad de volver a visitar el destino (escala de 1 a 5).', distribucion(`${SC}Pregunta.4`),
+        AVISO_PREGUNTA_SIN_NOMBRE + ' Sus porcentajes no coinciden con los del reporte del Observatorio sobre «volver a visitar»; falta que el Observatorio confirme qué pregunta es.'],
+    ['Razón principal indicada', 'Porcentaje de encuestados por la razón principal que indicaron.', distribucion(`${SC}Pregunta.5`), AVISO_PREGUNTA_SIN_NOMBRE],
+    ['Probabilidad de recomendar', 'Porcentaje de encuestados por su probabilidad de recomendar el destino a un amigo o colega (escala de 1 a 5).', distribucion(`${SC}Pregunta.6`),
+        'Coincide con el reporte del Observatorio («Recomendaría a un amigo o colega visitar Santa Elena»), aunque el encabezado del archivo es genérico.'],
+];
+
+const CATALOGO_SEMANA_SANTA: Indicador[] = ESPECIFICACIONES_SEMANA_SANTA.map(([nombre, descripcion, calcular, advertencia], i) => ({
+    id: `S${i + 1}`,
+    nombre,
+    descripcion,
+    estructura: S,
+    ...(advertencia ? { advertencia } : {}),
+    calcular,
+}));
+
+// Estructuras cuyos encabezados traen saltos de linea o espacios repetidos
+const NORMALIZAR_CLAVES = new Set<string>([S]);
+
+export const CATALOGO: Indicador[] = [...CATALOGO_OTS, ...CATALOGO_CARNAVAL, ...CATALOGO_SEMANA_SANTA];
 
 export function indicadoresDe(estructura: string): Indicador[] {
     return CATALOGO.filter((i) => i.estructura === estructura);
 }
 
-export function calcularIndicadores(estructura: string, registros: RegistroDatos[]): Array<ResultadoIndicador & { nombre: string; descripcion: string; advertencia?: string }> {
+export function calcularIndicadores(estructura: string, registrosOriginales: RegistroDatos[]): Array<ResultadoIndicador & { nombre: string; descripcion: string; advertencia?: string }> {
+    const registros = NORMALIZAR_CLAVES.has(estructura)
+        ? registrosOriginales.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [claveNormal(k), v])))
+        : registrosOriginales;
     return indicadoresDe(estructura).map((i) => ({
         id: i.id,
         nombre: i.nombre,

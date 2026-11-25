@@ -191,3 +191,45 @@ describe('indicadores de Carnaval (kobo_carnaval_v1)', () => {
         }
     });
 });
+
+describe('indicadores de Semana Santa (kobo_semana_santa_v1)', () => {
+    const K = 'kobo_semana_santa_v1';
+    const SA = 'SECCIÓN A. PERFIL SOCIODEMOGRÁFICO/';
+    const SC = 'SECCIÓN C. ESTRUCTURA DE CONSUMO/';
+    const seguridad = `${SC}Pregunta_019/Seguridad percibida durante\nsu estancia  `; // encabezado con salto de linea y espacios duros
+    const registros: RegistroDatos[] = [
+        { [`${SA}Pregunta`]: '25 a 34 años', [seguridad]: 4, [`${SC}Pregunta.6`]: '4 - Probable', 'SECCIÓN B. PLANEACIÓN DEL VIAJE/Pregunta.2': 'Sol y playa Gastronomía', Q2_Destinos_Afluencia_Moderada: 'Puerto Luicía Playa La Liberta' },
+        { [`${SA}Pregunta`]: '35 a 44 años', [seguridad]: 2, [`${SC}Pregunta.6`]: '5 - Muy probable', 'SECCIÓN B. PLANEACIÓN DEL VIAJE/Pregunta.2': 'Sol y playa', Q2_Destinos_Afluencia_Moderada: null },
+        { [`${SA}Pregunta`]: '25 a 34 años', [seguridad]: null, [`${SC}Pregunta.6`]: '4 - Probable', 'SECCIÓN B. PLANEACIÓN DEL VIAJE/Pregunta.2': 'Prefiero no responder', Q2_Destinos_Afluencia_Moderada: 'Dos Mangas' },
+    ];
+
+    it('lee las columnas aunque el encabezado traiga saltos de linea o espacios duros', () => {
+        const r = calcularIndicadores(K, registros).find((i) => i.nombre === 'Calificación de la seguridad');
+        expect(r?.valor).toBe(3);
+        expect(r?.registrosUsados).toBe(2);
+        expect(calcularIndicadores(K, registros).every((i) => i.id.startsWith('S'))).toBe(true);
+    });
+
+    it('reparte por edad y por probabilidad de recomendar', () => {
+        const edad = calcularIndicadores(K, registros).find((i) => i.nombre === 'Distribución por edad');
+        expect(edad?.distribucion?.[0]).toEqual({ categoria: '25 a 34 años', n: 2, porcentaje: 66.7 });
+        const rec = calcularIndicadores(K, registros).find((i) => i.nombre === 'Probabilidad de recomendar');
+        expect(rec?.distribucion?.[0]).toEqual({ categoria: '4 - Probable', n: 2, porcentaje: 66.7 });
+    });
+
+    it('cuenta las opciones mencionadas en un texto con varias respuestas, sin contar "Prefiero no responder"', () => {
+        const atr = calcularIndicadores(K, registros).find((i) => i.nombre === 'Atracciones de interés');
+        expect(atr?.registrosUsados).toBe(2);
+        expect(atr?.respuestaMultiple).toBe(true);
+        expect(atr?.distribucion?.find((d) => d.categoria === 'Sol y playa')).toEqual({ categoria: 'Sol y playa', n: 2, porcentaje: 100 });
+        expect(atr?.distribucion?.find((d) => d.categoria === 'Gastronomía')).toEqual({ categoria: 'Gastronomía', n: 1, porcentaje: 50 });
+    });
+
+    it('reconoce los destinos aunque vengan con errores de escritura', () => {
+        const q2 = calcularIndicadores(K, registros).find((i) => i.nombre === 'Destinos de afluencia moderada visitados');
+        expect(q2?.registrosUsados).toBe(2);
+        expect(q2?.distribucion?.find((d) => d.categoria === 'Puerto Lucía')?.n).toBe(1);
+        expect(q2?.distribucion?.find((d) => d.categoria === 'Playa La Libertad')?.n).toBe(1);
+        expect(q2?.distribucion?.find((d) => d.categoria === 'Dos Mangas')?.n).toBe(1);
+    });
+});
