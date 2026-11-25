@@ -353,8 +353,7 @@ const ESPECIFICACIONES_SEMANA_SANTA: EspecificacionCarnaval[] = [
     ['Probabilidad de volver', 'Porcentaje de encuestados por su probabilidad de volver a visitar el destino (escala de 1 a 5).', distribucion(`${SC}Pregunta.4`),
         AVISO_PREGUNTA_SIN_NOMBRE + ' Sus porcentajes no coinciden con los del reporte del Observatorio sobre «volver a visitar»; falta que el Observatorio confirme qué pregunta es.'],
     ['Razón principal indicada', 'Porcentaje de encuestados por la razón principal que indicaron.', distribucion(`${SC}Pregunta.5`), AVISO_PREGUNTA_SIN_NOMBRE],
-    ['Probabilidad de recomendar', 'Porcentaje de encuestados por su probabilidad de recomendar el destino a un amigo o colega (escala de 1 a 5).', distribucion(`${SC}Pregunta.6`),
-        'Coincide con el reporte del Observatorio («Recomendaría a un amigo o colega visitar Santa Elena»), aunque el encabezado del archivo es genérico.'],
+    ['Probabilidad de recomendar', 'Porcentaje de encuestados por su probabilidad de recomendar el destino a un amigo o colega (escala de 1 a 5).', distribucion(`${SC}Pregunta.6`)],
 ];
 
 const CATALOGO_SEMANA_SANTA: Indicador[] = ESPECIFICACIONES_SEMANA_SANTA.map(([nombre, descripcion, calcular, advertencia], i) => ({

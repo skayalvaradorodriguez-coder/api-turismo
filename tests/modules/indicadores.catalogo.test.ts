@@ -233,3 +233,12 @@ describe('indicadores de Semana Santa (kobo_semana_santa_v1)', () => {
         expect(q2?.distribucion?.find((d) => d.categoria === 'Dos Mangas')?.n).toBe(1);
     });
 });
+
+describe('avisos de Semana Santa', () => {
+    it('la probabilidad de recomendar (verificada con el reporte) no lleva aviso; la de volver y la razon si', () => {
+        const lista = calcularIndicadores('kobo_semana_santa_v1', []);
+        expect(lista.find((i) => i.nombre === 'Probabilidad de recomendar')?.advertencia).toBeUndefined();
+        expect(lista.find((i) => i.nombre === 'Probabilidad de volver')?.advertencia).toBeDefined();
+        expect(lista.find((i) => i.nombre === 'Razón principal indicada')?.advertencia).toBeDefined();
+    });
+});
